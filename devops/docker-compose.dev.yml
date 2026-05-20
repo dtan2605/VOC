@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+
+  frontend:
+    build:
+      context: ../frontend
+    ports:
+      - "3000:3000"
+
+  api-gateway:
+    build:
+      context: ../backend
+    ports:
+      - "5000:5000"
+
+  nlp-service:
+    build:
+      context: ../ai-services/services/nlp-service
+    ports:
+      - "8001:8001"
+
+  translation-service:
+    build:
+      context: ../ai-services/services/translation-service
+    ports:
+      - "8002:8002"

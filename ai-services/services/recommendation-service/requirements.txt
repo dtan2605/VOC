@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+scikit-learn
+numpy
+pandas
+torch
+transformers
+sentence-transformers
+redis
+sqlalchemy
+pymysql
+pydantic
+python-dotenv
+aiofiles
+httpx
+surprise

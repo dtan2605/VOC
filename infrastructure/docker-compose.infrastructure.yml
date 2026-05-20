@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+
+  redis:
+    image: redis:7
+    container_name: vocab-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/config/redis.conf:/usr/local/etc/redis/redis.conf
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: vocab-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq/data:/var/lib/rabbitmq
+
+  mysql:
+    image: mysql:8
+    container_name: vocab-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: english_vocab
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+
+  minio:
+    image: minio/minio
+    container_name: vocab-minio
+    command: server /data
+    ports:
+      - "9001:9000"
+    volumes:
+      - ./minio/data:/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: vocab-elasticsearch
+    environment:
+      discovery.type: single-node
+    ports:
+      - "9201:9200"

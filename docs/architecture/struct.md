@@ -494,22 +494,7 @@ docs/
 ```
 
 ---
-
-# 14. Scripts Structure
-
-```text
-scripts/
-│
-├── setup/
-│
-├── database/
-│
-├── deployment/
-│
-└── maintenance/
-```
-
----
+cd
 
 # 15. Kiến Trúc Chuẩn Cho Giai Đoạn Đầu
 
