@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+gtts
+eng-to-ipa
+aiofiles
+httpx
+redis
+sqlalchemy
+pymysql
+pydantic
+python-dotenv
+pydub
+librosa
+soundfile
+numpy
+minio

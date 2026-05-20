@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+httpx
+aiofiles
+redis
+sqlalchemy
+pymysql
+pydantic
+python-dotenv
+deep-translator
+transformers
+torch
+sentencepiece
+langdetect

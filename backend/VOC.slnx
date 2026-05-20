@@ -1,0 +1,78 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/ApiGateway/">
+    <Project Path="src/ApiGateway/ApiGateway/ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/AnalyticsService/">
+    <Project Path="src/Services/AnalyticsService/AnalyticsService.API/AnalyticsService.API.csproj" />
+    <Project Path="src/Services/AnalyticsService/AnalyticsService.Application/AnalyticsService.Application.csproj" />
+    <Project Path="src/Services/AnalyticsService/AnalyticsService.Domain/AnalyticsService.Domain.csproj" />
+    <Project Path="src/Services/AnalyticsService/AnalyticsService.Infrastructure/AnalyticsService.Infrastructure.csproj" />
+    <Project Path="src/Services/AnalyticsService/AnalyticsService.Persistence/AnalyticsService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/AuthService/">
+    <Project Path="src/Services/AuthService/AuthService.API/AuthService.API.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Application/AuthService.Application.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Domain/AuthService.Domain.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Infrastructure/AuthService.Infrastructure.csproj" />
+    <Project Path="src/Services/AuthService/AuthService.Persistence/AuthService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/LearningService/">
+    <Project Path="src/Services/LearningService/LearningService.API/LearningService.API.csproj" />
+    <Project Path="src/Services/LearningService/LearningService.Application/LearningService.Application.csproj" />
+    <Project Path="src/Services/LearningService/LearningService.Domain/LearningService.Domain.csproj" />
+    <Project Path="src/Services/LearningService/LearningService.Infrastructure/LearningService.Infrastructure.csproj" />
+    <Project Path="src/Services/LearningService/LearningService.Persistence/LearningService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/NotificationService/">
+    <Project Path="src/Services/NotificationService/NotificationService.API/NotificationService.API.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Application/NotificationService.Application.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Domain/NotificationService.Domain.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Infrastructure/NotificationService.Infrastructure.csproj" />
+    <Project Path="src/Services/NotificationService/NotificationService.Persistence/NotificationService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/RecommendationService/">
+    <Project Path="src/Services/RecommendationService/RecommendationService.API/RecommendationService.API.csproj" />
+    <Project Path="src/Services/RecommendationService/RecommendationService.Application/RecommendationService.Application.csproj" />
+    <Project Path="src/Services/RecommendationService/RecommendationService.Domain/RecommendationService.Domain.csproj" />
+    <Project Path="src/Services/RecommendationService/RecommendationService.Infrastructure/RecommendationService.Infrastructure.csproj" />
+    <Project Path="src/Services/RecommendationService/RecommendationService.Persistence/RecommendationService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/UserService/">
+    <Project Path="src/Services/UserService/UserService.API/UserService.API.csproj" />
+    <Project Path="src/Services/UserService/UserService.Application/UserService.Application.csproj" />
+    <Project Path="src/Services/UserService/UserService.Domain/UserService.Domain.csproj" />
+    <Project Path="src/Services/UserService/UserService.Infrastructure/UserService.Infrastructure.csproj" />
+    <Project Path="src/Services/UserService/UserService.Persistence/UserService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/VocabularyService/">
+    <Project Path="src/Services/VocabularyService/VocabularyService.API/VocabularyService.API.csproj" />
+    <Project Path="src/Services/VocabularyService/VocabularyService.Application/VocabularyService.Application.csproj" />
+    <Project Path="src/Services/VocabularyService/VocabularyService.Domain/VocabularyService.Domain.csproj" />
+    <Project Path="src/Services/VocabularyService/VocabularyService.Infrastructure/VocabularyService.Infrastructure.csproj" />
+    <Project Path="src/Services/VocabularyService/VocabularyService.Persistence/VocabularyService.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/" />
+  <Folder Name="/src/Shared/Common/">
+    <Project Path="src/Shared/Common/Common/Common.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/Contracts/">
+    <Project Path="src/Shared/Contracts/Contracts/Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/EventBus/">
+    <Project Path="src/Shared/EventBus/EventBus/EventBus.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/Logging/">
+    <Project Path="src/Shared/Logging/Logging/Logging.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/Middleware/">
+    <Project Path="src/Shared/Middleware/Middleware/Middleware.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/Security/">
+    <Project Path="src/Shared/Security/Security/Security.csproj" />
+  </Folder>
+  <Folder Name="/src/Shared/SharedKernel/">
+    <Project Path="src/Shared/SharedKernel/SharedKernel/SharedKernel.csproj" />
+  </Folder>
+</Solution>

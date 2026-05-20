@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+spacy
+nltk
+transformers
+torch
+scikit-learn
+sqlalchemy
+pymysql
+redis
+pydantic
+python-dotenv
+aiofiles
+httpx
+eng-to-ipa
