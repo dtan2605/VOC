@@ -1,0 +1,132 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: voc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: voc_auth
+    ports:
+      - "${MYSQL_HOST_PORT:-3309}:3306"
+    volumes:
+      - ./infrastructure/mysql/data:/var/lib/mysql
+      - ./infrastructure/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    networks:
+      - voc-network
+
+  auth-service:
+    build:
+      context: ./backend/src
+      dockerfile: ./Services/AuthService/AuthService.API/Dockerfile
+    container_name: voc-auth-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AuthDatabase: Server=mysql;Port=3306;Database=voc_auth;User=voc_user;Password=ChangeMe123!;
+      JwtSettings__Issuer: VOC.AuthService
+      JwtSettings__Audience: VOC.Client
+      JwtSettings__Secret: ReplaceThisWithASecureLongRandomSecretAtDeployTime
+      JwtSettings__AccessTokenExpirationMinutes: "15"
+      JwtSettings__RefreshTokenExpirationDays: "7"
+      JwtSettings__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "5058:8080"
+    networks:
+      - voc-network
+
+  user-service:
+    build:
+      context: ./backend/src
+      dockerfile: ./Services/UserService/UserService.API/Dockerfile
+    container_name: voc-user-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__UserDatabase: Server=mysql;Port=3306;Database=voc_user;User=voc_user;Password=ChangeMe123!;
+      JwtSettings__Issuer: VOC.AuthService
+      JwtSettings__Audience: VOC.Client
+      JwtSettings__Secret: ReplaceThisWithASecureLongRandomSecretAtDeployTime
+      JwtSettings__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "5029:8080"
+    networks:
+      - voc-network
+
+  vocabulary-service:
+    build:
+      context: ./backend/src
+      dockerfile: ./Services/VocabularyService/VocabularyService.API/Dockerfile
+    container_name: voc-vocabulary-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__VocabularyDatabase: Server=mysql;Port=3306;Database=voc_vocabulary;User=voc_user;Password=ChangeMe123!;
+      JwtSettings__Issuer: VOC.AuthService
+      JwtSettings__Audience: VOC.Client
+      JwtSettings__Secret: ReplaceThisWithASecureLongRandomSecretAtDeployTime
+      JwtSettings__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "5063:8080"
+    networks:
+      - voc-network
+
+  api-gateway:
+    build:
+      context: ./backend/src
+      dockerfile: ./ApiGateway/ApiGateway/Dockerfile
+    container_name: voc-api-gateway
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Gateway__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+      Gateway__Routes__AuthService: http://auth-service:8080
+      Gateway__Routes__UserService: http://user-service:8080
+      Gateway__Routes__VocabularyService: http://vocabulary-service:8080
+    depends_on:
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      vocabulary-service:
+        condition: service_started
+    ports:
+      - "5120:8080"
+    networks:
+      - voc-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile
+    container_name: voc-frontend
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "3000:80"
+    networks:
+      - voc-network
+
+networks:
+  voc-network:
+    driver: bridge

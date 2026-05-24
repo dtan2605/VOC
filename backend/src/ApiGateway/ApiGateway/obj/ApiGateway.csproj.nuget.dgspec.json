@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj",
         "projectName": "ApiGateway",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\ApiGateway.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\ApiGateway\\ApiGateway\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

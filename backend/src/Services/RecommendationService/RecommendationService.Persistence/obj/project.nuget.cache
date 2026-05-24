@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "j1zs0Jb889M=",
+  "dgSpecHash": "L3o+Mat1sgY=",
   "success": true,
-  "projectFilePath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\RecommendationService\\RecommendationService.Persistence\\RecommendationService.Persistence.csproj",
+  "projectFilePath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\RecommendationService\\RecommendationService.Persistence\\RecommendationService.Persistence.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

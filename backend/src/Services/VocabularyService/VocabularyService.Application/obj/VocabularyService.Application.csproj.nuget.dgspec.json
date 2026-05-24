@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj",
         "projectName": "VocabularyService.Application",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\VocabularyService.Application.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

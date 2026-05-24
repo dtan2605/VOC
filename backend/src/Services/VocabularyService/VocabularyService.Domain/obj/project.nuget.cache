@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "2B7c4F6G7XA=",
+  "dgSpecHash": "+BaL0NCMK5w=",
   "success": true,
-  "projectFilePath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Domain\\VocabularyService.Domain.csproj",
+  "projectFilePath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Domain\\VocabularyService.Domain.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

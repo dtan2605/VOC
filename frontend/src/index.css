@@ -1,111 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* Brand colors */
+  --color-voc-red: #C51E3A;
+  --color-voc-red-dark: #8B0000;
+  --color-voc-red-light: #ED8596;
+  --color-voc-red-50: #FFF5F5;
+  --color-voc-red-100: #F9D6DC;
+  --color-voc-cream: #FAFAFA;
+  --color-voc-dark: #111111;
+  --color-voc-gray: #6B7280;
+
+  /* Typography */
+  --font-heading: 'Montserrat', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --voc-accent: #c51e3a;
+  --voc-accent-strong: #8b0000;
+  --voc-accent-bright: #e54b4b;
+  --voc-accent-soft: #fff1f3;
+  --voc-app-bg: radial-gradient(circle at top, #fff7f8 0%, #ffffff 42%, #fffdfd 100%);
+  --voc-sidebar-bg: linear-gradient(180deg, #fff7f8 0%, #fffefe 100%);
+  --voc-topbar-bg: #fff8f9;
+  --voc-hero-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 247, 249, 0.96) 100%);
+  --voc-panel: rgba(255, 255, 255, 0.92);
+  --voc-panel-muted: rgba(255, 255, 255, 0.82);
+  --voc-surface-strong: #fff2f4;
+  --voc-border: rgba(197, 30, 58, 0.12);
+  --voc-text: #151515;
+  --voc-text-soft: #6f6670;
+  --voc-shadow-soft: rgba(145, 34, 54, 0.08);
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+:root[data-voc-theme='editorial'] {
+  --voc-accent: #a5122b;
+  --voc-accent-strong: #56000f;
+  --voc-accent-bright: #cf4154;
+  --voc-accent-soft: #fef3f4;
+  --voc-app-bg: linear-gradient(180deg, #fffdfc 0%, #fbf7f5 100%);
+  --voc-sidebar-bg: linear-gradient(180deg, #fffdfc 0%, #f7f1ed 100%);
+  --voc-topbar-bg: #fffdfb;
+  --voc-hero-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(250, 243, 240, 0.98) 100%);
+  --voc-panel: rgba(255, 255, 255, 0.95);
+  --voc-panel-muted: rgba(252, 247, 244, 0.92);
+  --voc-surface-strong: #f9efea;
+  --voc-border: rgba(123, 38, 54, 0.12);
+  --voc-text: #1c1615;
+  --voc-text-soft: #746968;
+  --voc-shadow-soft: rgba(92, 27, 22, 0.07);
+}
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--voc-text);
+    background: var(--voc-app-bg);
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100svh;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+@layer utilities {
+  .voc-surface {
+    background: var(--voc-panel);
+    border-color: var(--voc-border);
+    color: var(--voc-text);
   }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

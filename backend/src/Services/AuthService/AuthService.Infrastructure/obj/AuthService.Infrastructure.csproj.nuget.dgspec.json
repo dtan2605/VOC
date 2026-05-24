@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj",
         "projectName": "AuthService.Infrastructure",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\AuthService.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

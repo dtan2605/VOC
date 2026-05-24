@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "bOeh5jh2pUM=",
+  "dgSpecHash": "jA5DQoR29iM=",
   "success": true,
-  "projectFilePath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Application\\AuthService.Application.csproj",
+  "projectFilePath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AuthService\\AuthService.Application\\AuthService.Application.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

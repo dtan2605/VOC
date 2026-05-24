@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj",
         "projectName": "Security",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\Security.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Security\\Security\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

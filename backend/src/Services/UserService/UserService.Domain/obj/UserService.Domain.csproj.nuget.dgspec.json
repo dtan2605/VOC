@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj",
         "projectName": "UserService.Domain",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\UserService.Domain.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\UserService\\UserService.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

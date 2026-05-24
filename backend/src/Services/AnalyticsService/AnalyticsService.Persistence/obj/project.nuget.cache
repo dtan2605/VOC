@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "lNgI4gGAWZw=",
+  "dgSpecHash": "dIp2DHJkODo=",
   "success": true,
-  "projectFilePath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.Persistence\\AnalyticsService.Persistence.csproj",
+  "projectFilePath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.Persistence\\AnalyticsService.Persistence.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

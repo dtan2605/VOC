@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj",
         "projectName": "VocabularyService.Infrastructure",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\VocabularyService.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\VocabularyService\\VocabularyService.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

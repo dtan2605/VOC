@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7eo4q05ydKw=",
+  "dgSpecHash": "zRWzxCZHlMo=",
   "success": true,
-  "projectFilePath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\RecommendationService\\RecommendationService.Application\\RecommendationService.Application.csproj",
+  "projectFilePath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\RecommendationService\\RecommendationService.Application\\RecommendationService.Application.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

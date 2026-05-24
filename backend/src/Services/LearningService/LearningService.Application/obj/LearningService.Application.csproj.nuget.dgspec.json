@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj",
         "projectName": "LearningService.Application",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\LearningService.Application.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\LearningService\\LearningService.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

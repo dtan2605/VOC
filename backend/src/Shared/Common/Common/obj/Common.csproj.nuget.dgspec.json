@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj",
         "projectName": "Common",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\Common.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Shared\\Common\\Common\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

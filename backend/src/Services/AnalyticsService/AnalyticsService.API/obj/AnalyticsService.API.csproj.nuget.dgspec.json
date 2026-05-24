@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj": {}
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj": {}
   },
   "projects": {
-    "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj": {
+    "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj",
+        "projectUniqueName": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj",
         "projectName": "AnalyticsService.API",
-        "projectPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj",
+        "projectPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\AnalyticsService.API.csproj",
         "packagesPath": "C:\\Users\\trand\\.nuget\\packages\\",
-        "outputPath": "d:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\obj\\",
+        "outputPath": "D:\\Project\\Hybrid\\VOC\\backend\\src\\Services\\AnalyticsService\\AnalyticsService.API\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
