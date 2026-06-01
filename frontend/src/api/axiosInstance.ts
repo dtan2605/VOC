@@ -1,10 +1,14 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
 import type { AuthResponse } from '../types/auth'
+import { API_BASE_URL, API_ROUTES } from '../config/api'
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const clearSession = () => {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+}
 
 const axiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -35,7 +39,13 @@ axiosInstance.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const res = await axios.post<AuthResponse>(`${BASE_URL}/api/auth/refresh`, { refreshToken })
+          // Call refresh using the same axiosInstance so config/interceptors stay consistent.
+          // Important: ensure we always retry the original request with the updated Authorization header.
+          const res = await axiosInstance.post<AuthResponse>(
+            `${API_ROUTES.auth}/refresh`,
+            { refreshToken }
+          )
+
           localStorage.setItem('accessToken', res.data.accessToken)
           localStorage.setItem('refreshToken', res.data.refreshToken)
 
@@ -44,10 +54,12 @@ axiosInstance.interceptors.response.use(
 
           return axiosInstance(axiosError.config)
         } catch {
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
+          clearSession()
           window.location.href = '/auth'
         }
+      } else {
+        clearSession()
+        window.location.href = '/auth'
       }
     }
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VocabularyService.API.Dtos;
+using VocabularyService.API.Extensions;
 using VocabularyService.API.Models;
 using VocabularyService.Persistence;
 using VocabularyService.Persistence.Entities;
@@ -23,12 +24,17 @@ public sealed class TopicController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<TopicDto>>> GetTopics([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 12)
     {
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
         var query = _dbContext.Topics
             .AsNoTracking()
-            .Include(x => x.Vocabularies)
+            .Where(x => x.UserId == null || x.UserId == userId)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -48,7 +54,7 @@ public sealed class TopicController : ControllerBase
                 Name = x.Name,
                 Description = x.Description,
                 ColorHex = x.ColorHex,
-                VocabularyCount = x.Vocabularies.Count
+                VocabularyCount = _dbContext.Vocabularies.Count(v => v.TopicId == x.Id && (v.UserId == null || v.UserId == userId))
             })
             .ToListAsync();
 
@@ -65,13 +71,18 @@ public sealed class TopicController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<TopicDto>> CreateTopic([FromBody] UpsertTopicRequest request)
     {
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return BadRequest("Topic name is required.");
         }
 
         var normalizedName = request.Name.Trim();
-        var exists = await _dbContext.Topics.AnyAsync(x => x.Name == normalizedName);
+        var exists = await _dbContext.Topics.AnyAsync(x => x.Name == normalizedName && x.UserId == userId);
         if (exists)
         {
             return Conflict("Topic name already exists.");
@@ -81,7 +92,8 @@ public sealed class TopicController : ControllerBase
         {
             Name = normalizedName,
             Description = request.Description.Trim(),
-            ColorHex = string.IsNullOrWhiteSpace(request.ColorHex) ? "#C51E3A" : request.ColorHex.Trim()
+            ColorHex = string.IsNullOrWhiteSpace(request.ColorHex) ? "#C51E3A" : request.ColorHex.Trim(),
+            UserId = userId
         };
 
         _dbContext.Topics.Add(topic);
@@ -100,7 +112,12 @@ public sealed class TopicController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<TopicDto>> UpdateTopic(int id, [FromBody] UpsertTopicRequest request)
     {
-        var topic = await _dbContext.Topics.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id);
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var topic = await _dbContext.Topics.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (topic is null)
         {
             return NotFound("Topic not found.");
@@ -112,7 +129,7 @@ public sealed class TopicController : ControllerBase
         }
 
         var normalizedName = request.Name.Trim();
-        var nameExists = await _dbContext.Topics.AnyAsync(x => x.Id != id && x.Name == normalizedName);
+        var nameExists = await _dbContext.Topics.AnyAsync(x => x.Id != id && x.Name == normalizedName && x.UserId == userId);
         if (nameExists)
         {
             return Conflict("Topic name already exists.");
@@ -137,7 +154,12 @@ public sealed class TopicController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTopic(int id)
     {
-        var topic = await _dbContext.Topics.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id);
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var topic = await _dbContext.Topics.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (topic is null)
         {
             return NotFound("Topic not found.");
@@ -153,3 +175,4 @@ public sealed class TopicController : ControllerBase
         return NoContent();
     }
 }
+

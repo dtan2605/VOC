@@ -87,4 +87,141 @@
     border-color: var(--voc-border);
     color: var(--voc-text);
   }
+
+  .voc-page-enter {
+    animation: voc-page-enter 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .voc-soft-slide {
+    animation: voc-soft-slide 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--voc-delay, 0ms);
+  }
+
+  .voc-pop-in {
+    animation: voc-pop-in 0.5s ease both;
+    animation-delay: var(--voc-delay, 0ms);
+  }
+
+  .voc-hover-rise {
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease;
+  }
+
+  .voc-hover-rise:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 34px rgba(145, 34, 54, 0.12);
+  }
+
+  .voc-fade-up {
+    animation: voc-fade-up 0.7s ease both;
+  }
+
+  .voc-float-soft {
+    animation: voc-float-soft 6s ease-in-out infinite;
+  }
+
+  .voc-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .voc-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.24) 45%, transparent 100%);
+    transform: translateX(-120%);
+    animation: voc-shimmer 4.8s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes voc-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes voc-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes voc-soft-slide {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes voc-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes voc-float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes voc-shimmer {
+  0%,
+  20% {
+    transform: translateX(-120%);
+  }
+
+  60%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voc-page-enter,
+  .voc-soft-slide,
+  .voc-pop-in,
+  .voc-fade-up,
+  .voc-float-soft,
+  .voc-shimmer::after {
+    animation: none !important;
+  }
+
+  .voc-hover-rise,
+  .voc-hover-rise:hover {
+    transition: none !important;
+    transform: none !important;
+  }
 }

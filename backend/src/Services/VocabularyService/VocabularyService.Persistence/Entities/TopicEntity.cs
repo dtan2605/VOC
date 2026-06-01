@@ -14,6 +14,8 @@ public sealed class TopicEntity
     [MaxLength(400)]
     public string Description { get; set; } = string.Empty;
 
+    public int? UserId { get; set; }
+
     [Required]
     [MaxLength(20)]
     public string ColorHex { get; set; } = "#C51E3A";

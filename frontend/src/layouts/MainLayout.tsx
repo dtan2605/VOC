@@ -43,6 +43,12 @@ const navItems: NavItem[] = [
     icon: House,
   },
   {
+    to: '/profile',
+    label: 'Profile',
+    description: 'Your account and settings',
+    icon: UserRound,
+  },
+  {
     to: '/vocabulary',
     label: 'Words',
     description: 'Manage your vocabulary',
@@ -65,7 +71,6 @@ const navItems: NavItem[] = [
     label: 'Learning',
     description: 'Review and quiz flow',
     icon: LayoutDashboard,
-    soon: true,
   },
 ]
 
@@ -89,7 +94,7 @@ function NavigationContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="space-y-2">
-      {navItems.map((item) => {
+      {navItems.map((item, index) => {
         const isActive =
           !item.soon &&
           (location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
@@ -99,7 +104,8 @@ function NavigationContent({ onNavigate }: { onNavigate?: () => void }) {
           return (
             <div
               key={item.label}
-              className="flex items-center gap-3 rounded-[22px] border border-[var(--voc-border)] bg-[var(--voc-panel-muted)] px-4 py-4 text-[var(--voc-text-soft)] opacity-85"
+              className="voc-soft-slide voc-hover-rise flex items-center gap-3 rounded-[22px] border border-[var(--voc-border)] bg-[var(--voc-panel-muted)] px-4 py-4 text-[var(--voc-text-soft)] opacity-85"
+              style={{ animationDelay: `${index * 55}ms` }}
             >
               <div className="rounded-2xl bg-[var(--voc-surface-strong)] p-3 text-[var(--voc-accent)]">
                 <Icon size={18} />
@@ -122,8 +128,9 @@ function NavigationContent({ onNavigate }: { onNavigate?: () => void }) {
             key={item.label}
             to={item.to}
             onClick={onNavigate}
-            className="group flex items-center gap-3 rounded-[22px] border px-4 py-4 transition-all duration-300"
+            className="voc-soft-slide voc-hover-rise group flex items-center gap-3 rounded-[22px] border px-4 py-4 transition-all duration-300"
             style={{
+              animationDelay: `${index * 55}ms`,
               borderColor: isActive ? 'rgba(255,255,255,0.12)' : 'var(--voc-border)',
               background: isActive ? 'linear-gradient(135deg, var(--voc-accent) 0%, var(--voc-accent-strong) 100%)' : 'var(--voc-panel-muted)',
               color: isActive ? '#ffffff' : 'var(--voc-text)',
@@ -176,8 +183,8 @@ export default function MainLayout({
   return (
     <div className="min-h-screen bg-[var(--voc-app-bg)] text-[var(--voc-text)] transition-colors duration-300">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="hidden w-[320px] shrink-0 border-r border-[var(--voc-border)] bg-[var(--voc-sidebar-bg)] px-6 py-6 xl:flex xl:flex-col">
-          <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,var(--voc-accent-strong)_0%,var(--voc-accent)_48%,var(--voc-accent-bright)_100%)] p-6 text-white shadow-[0_26px_50px_rgba(109,0,19,0.28)]">
+        <aside className="voc-page-enter hidden w-[320px] shrink-0 border-r border-[var(--voc-border)] bg-[var(--voc-sidebar-bg)] px-6 py-6 xl:flex xl:flex-col">
+          <div className="voc-shimmer rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,var(--voc-accent-strong)_0%,var(--voc-accent)_48%,var(--voc-accent-bright)_100%)] p-6 text-white shadow-[0_26px_50px_rgba(109,0,19,0.28)]">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-1.5 backdrop-blur-md">
               <Flame size={13} />
               <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/82">
@@ -191,26 +198,22 @@ export default function MainLayout({
               T&T
             </h1>
             <p className="mt-4 text-sm leading-7 text-white/78">
-              A clean red-white study space to manage words, levels, and learning themes without
-              crowding everything into one screen.
+              A dedicated space to manage your IELTS vocabulary learning journey.
             </p>
           </div>
 
-          <div className="mt-6 rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
+          <div className="voc-pop-in mt-6 rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--voc-accent)]">
-              Workspace Navigation
+              Workspace
             </p>
             <div className="mt-4">
               <NavigationContent />
             </div>
           </div>
 
-          <div className="mt-auto rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
+          <div className="voc-pop-in mt-auto rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--voc-accent)]">
-              Theme Direction
-            </p>
-            <p className="mt-3 text-sm leading-6 text-[var(--voc-text-soft)]">
-              Switch between two red-white looks while keeping the same calm study structure.
+              Theme
             </p>
             <div className="mt-4">
               <ThemeSwitcher />
@@ -219,7 +222,7 @@ export default function MainLayout({
         </aside>
 
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-[var(--voc-border)] bg-[var(--voc-topbar-bg)]/92 backdrop-blur-xl">
+          <header className="voc-pop-in sticky top-0 z-30 border-b border-[var(--voc-border)] bg-[var(--voc-topbar-bg)]/92 backdrop-blur-xl">
             <div className="flex items-center justify-between gap-4 px-5 py-4 sm:px-8">
               <div className="flex items-center gap-3">
                 <button
@@ -260,8 +263,8 @@ export default function MainLayout({
             </div>
           </header>
 
-          <main className="flex-1 px-5 py-6 sm:px-8 sm:py-8">
-            <div className="mb-6 rounded-[34px] border border-[var(--voc-border)] bg-[var(--voc-hero-bg)] p-6 shadow-[0_20px_50px_var(--voc-shadow-soft)] sm:p-8">
+          <main className="voc-page-enter flex-1 px-5 py-6 sm:px-8 sm:py-8">
+            <div className="voc-pop-in mb-6 rounded-[34px] border border-[var(--voc-border)] bg-[var(--voc-hero-bg)] p-6 shadow-[0_20px_50px_var(--voc-shadow-soft)] sm:p-8">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
                   <div className="inline-flex items-center gap-2 rounded-full border border-[var(--voc-border)] bg-[var(--voc-panel)] px-3 py-1.5 text-[var(--voc-accent)] shadow-[0_10px_24px_var(--voc-shadow-soft)]">
@@ -282,10 +285,12 @@ export default function MainLayout({
                 </div>
                 <div className="lg:hidden">{actionSlot}</div>
               </div>
-              {hero && <div className="mt-6">{hero}</div>}
+              {hero && <div className="mt-6 voc-fade-up">{hero}</div>}
             </div>
 
-            {children}
+            <div className="voc-fade-up">
+              {children}
+            </div>
           </main>
         </div>
       </div>
@@ -297,7 +302,7 @@ export default function MainLayout({
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="relative h-full max-w-[340px] overflow-y-auto border-r border-[var(--voc-border)] bg-[var(--voc-sidebar-bg)] p-5 shadow-[0_24px_50px_rgba(0,0,0,0.2)]">
+          <div className="voc-page-enter relative h-full max-w-[340px] overflow-y-auto border-r border-[var(--voc-border)] bg-[var(--voc-sidebar-bg)] p-5 shadow-[0_24px_50px_rgba(0,0,0,0.2)]">
             <div className="flex items-center justify-between">
               <div className="rounded-2xl bg-[var(--voc-panel)] px-3 py-2 shadow-[0_10px_24px_var(--voc-shadow-soft)]">
                 <span
@@ -316,7 +321,7 @@ export default function MainLayout({
               </button>
             </div>
 
-            <div className="mt-6 rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
+            <div className="voc-pop-in mt-6 rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-5 shadow-[0_16px_40px_var(--voc-shadow-soft)]">
               <div className="flex items-start gap-3">
                 <div className="rounded-2xl bg-[var(--voc-surface-strong)] p-3 text-[var(--voc-accent)]">
                   <UserRound size={18} />

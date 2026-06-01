@@ -62,6 +62,11 @@ export interface VocabularyExampleRequest {
   displayOrder: number
 }
 
+export interface RelatedWordForm {
+  word: string
+  partOfSpeech: string
+}
+
 export interface VocabularyRequest {
   word: string
   meaning: string
@@ -70,4 +75,24 @@ export interface VocabularyRequest {
   bandId: number
   topicId: number
   examples: VocabularyExampleRequest[]
+}
+
+export interface VocabularyAiSuggestionRequest {
+  word: string
+}
+
+export interface VocabularyAiSuggestion {
+  word: string
+  meaning: string
+  meaningCandidates: string[]
+  partOfSpeech: string
+  pronunciation: string
+  lemma: string
+  englishDefinition: string
+  providerSummary: string
+  relatedForms: RelatedWordForm[]
+  synonyms: string[]
+  examples: VocabularyExampleRequest[]
+  bandLevel?: number
+  topicName?: string
 }

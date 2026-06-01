@@ -164,7 +164,7 @@ function BrandPanel() {
         </div>
       </div>
 
-      <div className="relative z-10 grid gap-5 px-10 pb-10 xl:grid-cols-[1.15fr_0.85fr] xl:px-16 xl:pb-16">
+      <div className="mt-[10px] relative z-10 grid gap-5 px-10 pb-10 xl:grid-cols-[1.15fr_0.85fr] xl:px-16 xl:pb-16">
         <div className="rounded-[28px] border border-white/14 bg-white/10 p-6 backdrop-blur-2xl">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-white/65">

@@ -1,4 +1,17 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: voc-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - voc-network
+
   mysql:
     image: mysql:8.4
     container_name: voc-mysql
@@ -65,6 +78,8 @@ services:
       - "5029:8080"
     networks:
       - voc-network
+    volumes:
+      - ./data/avatars:/data/avatars
 
   vocabulary-service:
     build:
@@ -80,11 +95,110 @@ services:
       JwtSettings__Audience: VOC.Client
       JwtSettings__Secret: ReplaceThisWithASecureLongRandomSecretAtDeployTime
       JwtSettings__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+      AiServices__NlpServiceBaseUrl: http://nlp-service:8000
+      AiServices__TranslationServiceBaseUrl: http://translation-service:8002
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest
+      RabbitMq__Exchange: voc.ai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    ports:
+      - "5063:8080"
+    networks:
+      - voc-network
+
+  nlp-service:
+    build:
+      context: ./ai-services/services/nlp-service
+      dockerfile: ./Dockerfile
+    container_name: voc-nlp-service
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./ai-services/models/spacy:/root/.cache/spacy
+      - ./ai-services/models/nltk:/root/nltk_data
+    networks:
+      - voc-network
+
+  translation-service:
+    build:
+      context: ./ai-services/services/translation-service
+      dockerfile: ./Dockerfile
+    container_name: voc-translation-service
+    restart: unless-stopped
+    environment:
+      ARGOS_PACKAGES_DIR: /root/.local/share/argos-translate/packages
+      ARGOS_DEVICE_TYPE: cpu
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./ai-services/models/argos:/root/.local/share/argos-translate
+    networks:
+      - voc-network
+
+  learning-service:
+    build:
+      context: ./backend/src
+      dockerfile: ./Services/LearningService/LearningService.API/Dockerfile
+    container_name: voc-learning-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__LearningDatabase: Server=mysql;Port=3306;Database=voc_learning;User=voc_user;Password=ChangeMe123!;
+      JwtSettings__Issuer: VOC.AuthService
+      JwtSettings__Audience: VOC.Client
+      JwtSettings__Secret: ReplaceThisWithASecureLongRandomSecretAtDeployTime
+      JwtSettings__AllowedOrigins: http://localhost:3000,http://localhost:5173,http://localhost
+      DownstreamServices__VocabularyServiceBaseUrl: http://vocabulary-service:8080
+      DownstreamServices__AnalyticsServiceBaseUrl: http://analytics-service:80
+      INTERNAL_API_KEY: ChangeMeSecret
+    depends_on:
+      mysql:
+        condition: service_healthy
+      vocabulary-service:
+        condition: service_started
+    ports:
+      - "5068:8080"
+    networks:
+      - voc-network
+
+  analytics-service:
+    build:
+      context: ./backend/src/Services/AnalyticsService
+      dockerfile: Dockerfile
+    container_name: voc-analytics-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:80
+      ANALYTICS_DB: Server=mysql;Port=3306;Database=voc_analytics;User=root;Password=password;
+      INTERNAL_API_KEY: ChangeMeSecret
+      AGGREGATOR_INTERVAL_SECONDS: "60"
     depends_on:
       mysql:
         condition: service_healthy
     ports:
-      - "5063:8080"
+      - "5100:80"
+    networks:
+      - voc-network
+
+  recommendation-service:
+    build:
+      context: ./ai-services/services/recommendation-service
+      dockerfile: Dockerfile
+      args:
+        - BUILD_TYPE=dev
+    container_name: voc-recommendation-service
+    restart: unless-stopped
+    ports:
+      - "8005:8004"
     networks:
       - voc-network
 
@@ -101,12 +215,20 @@ services:
       Gateway__Routes__AuthService: http://auth-service:8080
       Gateway__Routes__UserService: http://user-service:8080
       Gateway__Routes__VocabularyService: http://vocabulary-service:8080
+      Gateway__Routes__LearningService: http://learning-service:8080
+      Gateway__Routes__AnalyticsService: http://analytics-service:80
     depends_on:
       auth-service:
         condition: service_started
       user-service:
         condition: service_started
       vocabulary-service:
+        condition: service_started
+      nlp-service:
+        condition: service_started
+      translation-service:
+        condition: service_started
+      learning-service:
         condition: service_started
     ports:
       - "5120:8080"

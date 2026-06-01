@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Ensure generated assembly attributes are disabled when building inside container contexts -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+</Project>

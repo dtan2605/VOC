@@ -230,7 +230,7 @@ export default function ProfilePage() {
     <MainLayout
       eyebrow="Main Layout + Dashboard Layout"
       title="Your IELTS command center is now unified."
-      description="Phase 2.1 brings the authenticated pages into one responsive shell with consistent navigation, reusable surfaces, and a switchable red-white theme system."
+      description="Your profile."
       hero={hero}
       actionSlot={
         <button

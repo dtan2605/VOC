@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VocabularyService.API.Dtos;
+using VocabularyService.API.Extensions;
 using VocabularyService.API.Models;
 using VocabularyService.Persistence;
 using VocabularyService.Persistence.Entities;
@@ -23,12 +24,17 @@ public sealed class BandController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<BandDto>>> GetBands([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 12)
     {
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
         var query = _dbContext.Bands
             .AsNoTracking()
-            .Include(x => x.Vocabularies)
+            .Where(x => x.UserId == null || x.UserId == userId)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -49,7 +55,7 @@ public sealed class BandController : ControllerBase
                 Name = x.Name,
                 Description = x.Description,
                 SortOrder = x.SortOrder,
-                VocabularyCount = x.Vocabularies.Count
+                VocabularyCount = _dbContext.Vocabularies.Count(v => v.BandId == x.Id && (v.UserId == null || v.UserId == userId))
             })
             .ToListAsync();
 
@@ -66,13 +72,18 @@ public sealed class BandController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<BandDto>> CreateBand([FromBody] UpsertBandRequest request)
     {
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return BadRequest("Band name is required.");
         }
 
         var normalizedName = request.Name.Trim();
-        var exists = await _dbContext.Bands.AnyAsync(x => x.Name == normalizedName);
+        var exists = await _dbContext.Bands.AnyAsync(x => x.Name == normalizedName && x.UserId == userId);
         if (exists)
         {
             return Conflict("Band name already exists.");
@@ -82,7 +93,8 @@ public sealed class BandController : ControllerBase
         {
             Name = normalizedName,
             Description = request.Description.Trim(),
-            SortOrder = request.SortOrder
+            SortOrder = request.SortOrder,
+            UserId = userId
         };
 
         _dbContext.Bands.Add(band);
@@ -101,7 +113,12 @@ public sealed class BandController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<BandDto>> UpdateBand(int id, [FromBody] UpsertBandRequest request)
     {
-        var band = await _dbContext.Bands.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id);
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var band = await _dbContext.Bands.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (band is null)
         {
             return NotFound("Band not found.");
@@ -113,7 +130,7 @@ public sealed class BandController : ControllerBase
         }
 
         var normalizedName = request.Name.Trim();
-        var nameExists = await _dbContext.Bands.AnyAsync(x => x.Id != id && x.Name == normalizedName);
+        var nameExists = await _dbContext.Bands.AnyAsync(x => x.Id != id && x.Name == normalizedName && x.UserId == userId);
         if (nameExists)
         {
             return Conflict("Band name already exists.");
@@ -138,7 +155,12 @@ public sealed class BandController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteBand(int id)
     {
-        var band = await _dbContext.Bands.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id);
+        if (!this.TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var band = await _dbContext.Bands.Include(x => x.Vocabularies).FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (band is null)
         {
             return NotFound("Band not found.");
@@ -154,3 +176,4 @@ public sealed class BandController : ControllerBase
         return NoContent();
     }
 }
+

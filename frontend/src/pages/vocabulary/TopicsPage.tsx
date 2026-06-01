@@ -109,11 +109,10 @@ export default function TopicsPage() {
           className="mt-4 text-[32px] font-black leading-tight tracking-[-0.05em]"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
-          One page just for topic management.
+          Page just for topic management.
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">
-          Use topics like travel, science, business, or daily life to keep related vocabulary in
-          meaningful groups.
+          Use topics to keep related vocabulary in meaningful groups.
         </p>
       </div>
 
@@ -132,8 +131,8 @@ export default function TopicsPage() {
   return (
     <MainLayout
       eyebrow="Topics"
-      title="Separate topic management for a cleaner workflow."
-      description="This page focuses only on learning themes, making topic organization easier to maintain and review."
+      title="Separate topic management."
+      description="Create your topics."
       hero={hero}
       actionSlot={
         <button

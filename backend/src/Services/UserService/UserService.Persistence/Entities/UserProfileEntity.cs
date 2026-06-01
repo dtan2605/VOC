@@ -18,5 +18,8 @@ public sealed class UserProfileEntity
     [Required]
     public string Roles { get; set; } = string.Empty;
 
+    [MaxLength(512)]
+    public string? AvatarPath { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

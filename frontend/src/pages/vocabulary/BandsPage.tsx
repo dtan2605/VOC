@@ -109,7 +109,7 @@ export default function BandsPage() {
           className="mt-4 text-[32px] font-black leading-tight tracking-[-0.05em]"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
-          One page just for band management.
+          Page just for band management.
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-white/82">
           Use this screen to define study levels like band 4-5, 5-6, or 7-8 so words stay grouped
@@ -133,7 +133,7 @@ export default function BandsPage() {
     <MainLayout
       eyebrow="Bands"
       title="Separate band management for a cleaner workflow."
-      description="This page is dedicated to IELTS levels only, so it is easier to create, edit, and maintain band groups."
+      description="Sort your words by difficulty levels with bands."
       hero={hero}
       actionSlot={
         <button

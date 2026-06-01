@@ -14,6 +14,8 @@ public sealed class BandEntity
     [MaxLength(400)]
     public string Description { get; set; } = string.Empty;
 
+    public int? UserId { get; set; }
+
     public int SortOrder { get; set; }
 
     public ICollection<VocabularyEntity> Vocabularies { get; set; } = new List<VocabularyEntity>();

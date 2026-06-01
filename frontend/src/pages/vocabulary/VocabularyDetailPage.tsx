@@ -12,7 +12,7 @@ import {
 import MainLayout from '../../layouts/MainLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { vocabApi } from '../../api/vocabApi'
-import type { Band, Topic, VocabularyItem } from '../../types/vocabulary'
+import type { Band, Topic, VocabularyAiSuggestion, VocabularyItem } from '../../types/vocabulary'
 
 function pronounceWord(word: string) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window) || !word.trim()) {
@@ -31,7 +31,7 @@ function BandProgress({ bands }: { bands: Band[] }) {
   const maxCount = Math.max(...bands.map((band) => band.vocabularyCount), 1)
 
   return (
-    <div className="rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
+    <div className="voc-pop-in rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
@@ -66,7 +66,7 @@ function BandProgress({ bands }: { bands: Band[] }) {
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-[var(--voc-surface-strong)]">
                 <div
-                  className="h-full rounded-full bg-[linear-gradient(135deg,var(--voc-accent-strong)_0%,var(--voc-accent)_42%,var(--voc-accent-bright)_100%)] shadow-[0_8px_18px_var(--voc-shadow-soft)]"
+                  className="h-full rounded-full bg-[linear-gradient(135deg,var(--voc-accent-strong)_0%,var(--voc-accent)_42%,var(--voc-accent-bright)_100%)] shadow-[0_8px_18px_var(--voc-shadow-soft)] transition-all duration-700"
                   style={{ width }}
                 />
               </div>
@@ -87,6 +87,7 @@ export default function VocabularyDetailPage() {
   const [relatedItems, setRelatedItems] = useState<VocabularyItem[]>([])
   const [bands, setBands] = useState<Band[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
+  const [aiInsight, setAiInsight] = useState<VocabularyAiSuggestion | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeCardIndex, setActiveCardIndex] = useState(0)
@@ -126,6 +127,13 @@ export default function VocabularyDetailPage() {
         setRelatedItems(
           [detail, ...relatedResponse.items.filter((candidate) => candidate.id !== detail.id)].slice(0, 8)
         )
+
+        try {
+          const suggestion = await vocabApi.suggestVocabulary({ word: detail.word })
+          setAiInsight(suggestion)
+        } catch {
+          setAiInsight(null)
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load vocabulary detail.'
         setError(message)
@@ -148,7 +156,7 @@ export default function VocabularyDetailPage() {
 
   const hero = item ? (
     <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-      <div className="rounded-[30px] bg-[linear-gradient(135deg,var(--voc-accent-strong)_0%,var(--voc-accent)_42%,var(--voc-accent-bright)_100%)] p-6 text-white shadow-[0_28px_54px_rgba(134,16,39,0.24)]">
+      <div className="voc-shimmer voc-pop-in rounded-[30px] bg-[linear-gradient(135deg,var(--voc-accent-strong)_0%,var(--voc-accent)_42%,var(--voc-accent-bright)_100%)] p-6 text-white shadow-[0_28px_54px_rgba(134,16,39,0.24)]">
         <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur-md">
           <Sparkles size={14} />
           <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/80">
@@ -183,7 +191,7 @@ export default function VocabularyDetailPage() {
           ['Topic', item.topicName],
           ['Examples', item.examples.length.toString()],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] px-5 py-5 shadow-[0_14px_40px_var(--voc-shadow-soft)]">
+          <div key={label} className="voc-pop-in voc-hover-rise rounded-[28px] border border-[var(--voc-border)] bg-[var(--voc-panel)] px-5 py-5 shadow-[0_14px_40px_var(--voc-shadow-soft)]">
             <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--voc-text-soft)]">{label}</p>
             <p
               className="mt-3 text-2xl font-black text-[var(--voc-text)]"
@@ -201,7 +209,7 @@ export default function VocabularyDetailPage() {
     <MainLayout
       eyebrow="Phase 2.2 Vocabulary UX"
       title="A richer vocabulary experience with detail, flashcards, and speech."
-      description="This detail route turns each word into a study surface with a focused reading layout, browser pronunciation, related flashcards, and visual progress by band."
+      description="More detail for each word."
       hero={hero}
       actionSlot={
         <button
@@ -227,7 +235,7 @@ export default function VocabularyDetailPage() {
       ) : (
         <section className="grid gap-6 2xl:grid-cols-[1.08fr_0.92fr]">
           <div className="space-y-6">
-            <div className="rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
+            <div className="voc-pop-in rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
@@ -246,7 +254,7 @@ export default function VocabularyDetailPage() {
               </div>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-                <div className="rounded-[28px] bg-[var(--voc-panel-muted)] p-5">
+                <div className="voc-hover-rise rounded-[28px] bg-[var(--voc-panel-muted)] p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
                     Core Definition
                   </p>
@@ -274,7 +282,7 @@ export default function VocabularyDetailPage() {
                   </div>
                 </div>
 
-                <div className="rounded-[28px] border border-[var(--voc-border)] bg-white p-5">
+                <div className="voc-hover-rise rounded-[28px] border border-[var(--voc-border)] bg-white p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
                     Example Sentences
                   </p>
@@ -302,7 +310,99 @@ export default function VocabularyDetailPage() {
               </div>
             </div>
 
-            <div className="rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
+            {aiInsight && (
+              <div className="voc-pop-in rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
+                      Word Family
+                    </p>
+                    <h2
+                      className="mt-2 text-2xl font-black tracking-[-0.04em] text-[var(--voc-text)]"
+                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    >
+                      Related forms and meaning options
+                    </h2>
+                  </div>
+                  <div className="rounded-2xl bg-[var(--voc-surface-strong)] p-3 text-[var(--voc-accent)]">
+                    <Sparkles size={18} />
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                  <div className="rounded-[28px] bg-[var(--voc-panel-muted)] p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
+                      Preferred meanings
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {aiInsight.meaningCandidates.length > 0 ? (
+                        aiInsight.meaningCandidates.map((candidate) => (
+                          <span
+                            key={candidate}
+                            className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-[var(--voc-text)]"
+                          >
+                            {candidate}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-sm text-[var(--voc-text-soft)]">
+                          No ranked meanings are available yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] bg-[var(--voc-panel-muted)] p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
+                      Other forms
+                    </p>
+                    <div className="mt-4 grid gap-3">
+                      {aiInsight.relatedForms.length > 0 ? (
+                        aiInsight.relatedForms.map((form) => (
+                          <div
+                            key={`${form.word}-${form.partOfSpeech}`}
+                            className="rounded-2xl bg-white px-4 py-3"
+                          >
+                            <p className="text-sm font-semibold text-[var(--voc-text)]">{form.word}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-[var(--voc-text-soft)]">
+                              {form.partOfSpeech}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-[var(--voc-text-soft)]">
+                          No alternate word forms were detected for this entry.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] bg-[var(--voc-panel-muted)] p-5 lg:col-span-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
+                      Synonyms
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {aiInsight.synonyms.length > 0 ? (
+                        aiInsight.synonyms.map((synonym) => (
+                          <span
+                            key={synonym}
+                            className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-[var(--voc-text)]"
+                          >
+                            {synonym}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-sm text-[var(--voc-text-soft)]">
+                          No close synonyms were detected for this entry.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="voc-pop-in rounded-[32px] border border-[var(--voc-border)] bg-[var(--voc-panel)] p-6 shadow-[0_18px_50px_var(--voc-shadow-soft)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
@@ -342,7 +442,7 @@ export default function VocabularyDetailPage() {
 
               {activeCard && (
                 <div className="mt-6">
-                  <div className="relative overflow-hidden rounded-[34px] border border-[var(--voc-border)] bg-[linear-gradient(160deg,#ffffff_0%,#fff6f7_55%,#ffe9ee_100%)] p-6 shadow-[0_24px_60px_var(--voc-shadow-soft)]">
+                  <div className="voc-pop-in relative overflow-hidden rounded-[34px] border border-[var(--voc-border)] bg-[linear-gradient(160deg,#ffffff_0%,#fff6f7_55%,#ffe9ee_100%)] p-6 shadow-[0_24px_60px_var(--voc-shadow-soft)]">
                     <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[var(--voc-accent)]/10 blur-2xl" />
                     <div className="absolute -bottom-12 -left-6 h-32 w-32 rounded-full bg-[var(--voc-accent-bright)]/12 blur-2xl" />
 
@@ -376,7 +476,7 @@ export default function VocabularyDetailPage() {
                         </p>
 
                         {isMeaningVisible ? (
-                          <div className="mt-8 rounded-[24px] bg-[var(--voc-accent-soft)]/70 p-5">
+                          <div className="voc-fade-up mt-8 rounded-[24px] bg-[var(--voc-accent-soft)]/70 p-5">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--voc-accent)]/70">
                               Back side
                             </p>
@@ -420,7 +520,9 @@ export default function VocabularyDetailPage() {
           </div>
 
           <div className="space-y-6">
-            <BandProgress bands={bands} />
+            <div className="voc-pop-in">
+              <BandProgress bands={bands} />
+            </div>
           </div>
         </section>
       )}

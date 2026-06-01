@@ -5,6 +5,8 @@ import type {
   PagedResult,
   Topic,
   TopicRequest,
+  VocabularyAiSuggestion,
+  VocabularyAiSuggestionRequest,
   VocabularyItem,
   VocabularyRequest,
 } from '../types/vocabulary'
@@ -56,6 +58,11 @@ export const vocabApi = {
 
   deleteVocabulary: async (id: number) => {
     await axiosInstance.delete(`/api/vocabulary/${id}`)
+  },
+
+  suggestVocabulary: async (data: VocabularyAiSuggestionRequest) => {
+    const response = await axiosInstance.post<VocabularyAiSuggestion>('/api/vocabulary/ai/suggest', data)
+    return response.data
   },
 
   getBands: async (search = '', page = 1, pageSize = 30) => {

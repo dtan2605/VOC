@@ -1,6 +1,11 @@
 version: '3.9'
 
 services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
   frontend:
     build:
@@ -18,10 +23,30 @@ services:
     build:
       context: ../ai-services/services/nlp-service
     ports:
-      - "8001:8001"
+      - "8001:8000"
+    volumes:
+      - ../ai-services/models/spacy:/root/.cache/spacy
+      - ../ai-services/models/nltk:/root/nltk_data
 
   translation-service:
     build:
       context: ../ai-services/services/translation-service
+    environment:
+      ARGOS_PACKAGES_DIR: /root/.local/share/argos-translate/packages
+      ARGOS_DEVICE_TYPE: cpu
     ports:
       - "8002:8002"
+    volumes:
+      - ../ai-services/models/argos:/root/.local/share/argos-translate
+
+  vocabulary-service:
+    build:
+      context: ../backend/src
+      dockerfile: ./Services/VocabularyService/VocabularyService.API/Dockerfile
+    environment:
+      AiServices__NlpServiceBaseUrl: http://nlp-service:8000
+      AiServices__TranslationServiceBaseUrl: http://translation-service:8002
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: guest
+      RabbitMq__Password: guest

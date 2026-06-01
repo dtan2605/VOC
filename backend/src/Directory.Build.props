@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Disable automatic assembly info generation to avoid duplicate attributes across multi-project solution -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Also prevent generation of TargetFrameworkAttribute which can be produced separately -->
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+</Project>

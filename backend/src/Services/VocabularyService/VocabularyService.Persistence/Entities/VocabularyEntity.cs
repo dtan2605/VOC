@@ -21,6 +21,8 @@ public sealed class VocabularyEntity
     [MaxLength(120)]
     public string Pronunciation { get; set; } = string.Empty;
 
+    public int? UserId { get; set; }
+
     public int BandId { get; set; }
     public BandEntity? Band { get; set; }
 

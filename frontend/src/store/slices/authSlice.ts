@@ -13,6 +13,11 @@ interface AuthState {
   isAuthenticated: boolean
 }
 
+interface RejectedApiError {
+  message: string
+  status?: number
+}
+
 const initialState: AuthState = {
   user: null,
   accessToken: localStorage.getItem('accessToken'),
@@ -29,8 +34,11 @@ export const login = createAsyncThunk(
       const res = await authApi.login(data)
       return res.data
     } catch (err: unknown) {
-      const e = err as { response?: { data?: string } }
-      return rejectWithValue(e.response?.data ?? 'Login failed. Please check your credentials.')
+      const e = err as { response?: { data?: string; status?: number } }
+      return rejectWithValue({
+        message: e.response?.data ?? 'Login failed. Please check your credentials.',
+        status: e.response?.status,
+      } satisfies RejectedApiError)
     }
   }
 )
@@ -42,8 +50,11 @@ export const register = createAsyncThunk(
       const res = await authApi.register(data)
       return res.data
     } catch (err: unknown) {
-      const e = err as { response?: { data?: string } }
-      return rejectWithValue(e.response?.data ?? 'Registration failed. Please try again.')
+      const e = err as { response?: { data?: string; status?: number } }
+      return rejectWithValue({
+        message: e.response?.data ?? 'Registration failed. Please try again.',
+        status: e.response?.status,
+      } satisfies RejectedApiError)
     }
   }
 )
@@ -55,8 +66,11 @@ export const fetchProfile = createAsyncThunk(
       const res = await userApi.getProfile()
       return res.data
     } catch (err: unknown) {
-      const e = err as { response?: { data?: string } }
-      return rejectWithValue(e.response?.data ?? 'Failed to load profile.')
+      const e = err as { response?: { data?: string; status?: number } }
+      return rejectWithValue({
+        message: e.response?.data ?? 'Failed to load profile.',
+        status: e.response?.status,
+      } satisfies RejectedApiError)
     }
   }
 )
@@ -103,7 +117,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false
-        state.error = (action.payload as string) ?? 'Login failed.'
+        state.error = (action.payload as RejectedApiError | undefined)?.message ?? 'Login failed.'
       })
       .addCase(register.pending, (state) => {
         state.isLoading = true
@@ -119,7 +133,7 @@ const authSlice = createSlice({
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false
-        state.error = (action.payload as string) ?? 'Registration failed.'
+        state.error = (action.payload as RejectedApiError | undefined)?.message ?? 'Registration failed.'
       })
       .addCase(fetchProfile.pending, (state) => {
         state.isLoading = true
@@ -131,7 +145,16 @@ const authSlice = createSlice({
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.isLoading = false
-        state.error = (action.payload as string) ?? 'Failed to load profile.'
+        const payload = action.payload as RejectedApiError | undefined
+        state.error = payload?.message ?? 'Failed to load profile.'
+        if (payload?.status === 401) {
+          state.user = null
+          state.accessToken = null
+          state.refreshToken = null
+          state.isAuthenticated = false
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+        }
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null

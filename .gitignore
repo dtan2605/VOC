@@ -32,6 +32,7 @@ obj/
 # ENV
 .env
 *.env
+.env.example
 
 # Audio generated
 generated_audio/
@@ -39,3 +40,8 @@ generated_audio/
 # OS
 .DS_Store
 Thumbs.db
+
+#secret
+secrets/
+
+scripts/

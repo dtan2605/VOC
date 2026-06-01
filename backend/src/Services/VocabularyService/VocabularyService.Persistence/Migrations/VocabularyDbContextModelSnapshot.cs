@@ -35,6 +35,9 @@ namespace VocabularyService.Persistence.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("varchar(400)");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -45,7 +48,7 @@ namespace VocabularyService.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("UserId", "Name")
                         .IsUnique();
 
                     b.ToTable("bands", (string)null);
@@ -141,6 +144,9 @@ namespace VocabularyService.Persistence.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("varchar(400)");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -148,7 +154,7 @@ namespace VocabularyService.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("UserId", "Name")
                         .IsUnique();
 
                     b.ToTable("topics", (string)null);
@@ -188,6 +194,9 @@ namespace VocabularyService.Persistence.Migrations
                     b.Property<int>("BandId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -221,7 +230,7 @@ namespace VocabularyService.Persistence.Migrations
 
                     b.HasIndex("BandId");
 
-                    b.HasIndex("TopicId", "Word")
+                    b.HasIndex("UserId", "TopicId", "Word")
                         .IsUnique();
 
                     b.ToTable("vocabularies", (string)null);

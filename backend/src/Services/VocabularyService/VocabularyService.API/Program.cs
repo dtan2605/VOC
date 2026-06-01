@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VocabularyService.API.Models;
+using VocabularyService.API.Services;
 using VocabularyService.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,8 @@ builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
+builder.Services.Configure<AiServiceSettings>(builder.Configuration.GetSection("AiServices"));
+var aiServiceSettings = builder.Configuration.GetSection("AiServices").Get<AiServiceSettings>() ?? new AiServiceSettings();
 
 builder.Services.AddDbContext<VocabularyDbContext>(options =>
 {
@@ -30,6 +33,19 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient("nlp-service", client =>
+{
+    client.BaseAddress = new Uri(aiServiceSettings.NlpServiceBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient("translation-service", client =>
+{
+    client.BaseAddress = new Uri(aiServiceSettings.TranslationServiceBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(45);
+});
+builder.Services.AddScoped<IVocabularyAiService, VocabularyAiService>();
+builder.Services.AddSingleton<IVocabularyAiEventPublisher, RabbitMqVocabularyAiEventPublisher>();
+builder.Services.AddScoped<IUserVocabularyInitializationService, UserVocabularyInitializationService>();
 
 builder.Services.AddCors(options =>
 {

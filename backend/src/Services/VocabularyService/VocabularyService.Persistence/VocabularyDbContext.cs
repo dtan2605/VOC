@@ -25,7 +25,8 @@ public sealed class VocabularyDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(400);
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.UserId).IsRequired(false);
+            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
         });
 
         modelBuilder.Entity<TopicEntity>(entity =>
@@ -34,8 +35,9 @@ public sealed class VocabularyDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(400);
+            entity.Property(x => x.UserId).IsRequired(false);
             entity.Property(x => x.ColorHex).HasMaxLength(20).IsRequired();
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
         });
 
         modelBuilder.Entity<VocabularyEntity>(entity =>
@@ -46,7 +48,8 @@ public sealed class VocabularyDbContext : DbContext
             entity.Property(x => x.Meaning).HasMaxLength(500).IsRequired();
             entity.Property(x => x.PartOfSpeech).HasMaxLength(120);
             entity.Property(x => x.Pronunciation).HasMaxLength(120);
-            entity.HasIndex(x => new { x.TopicId, x.Word }).IsUnique();
+            entity.Property(x => x.UserId).IsRequired(false);
+            entity.HasIndex(x => new { x.UserId, x.TopicId, x.Word }).IsUnique();
 
             entity.HasOne(x => x.Band)
                 .WithMany(x => x.Vocabularies)

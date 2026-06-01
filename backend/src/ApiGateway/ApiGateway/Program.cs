@@ -58,6 +58,14 @@ app.MapMethods("/api/bands/{**catchAll}", new[] { "GET", "POST", "PUT", "PATCH",
     (HttpContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration) =>
         ProxyRequest(context, httpClientFactory, configuration, "Gateway:Routes:VocabularyService"));
 
+app.MapMethods("/api/learning/{**catchAll}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" },
+    (HttpContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration) =>
+        ProxyRequest(context, httpClientFactory, configuration, "Gateway:Routes:LearningService"));
+
+app.MapMethods("/api/analytics/{**catchAll}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" },
+    (HttpContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration) =>
+        ProxyRequest(context, httpClientFactory, configuration, "Gateway:Routes:AnalyticsService"));
+
 app.Run();
 
 static async Task ProxyRequest(
