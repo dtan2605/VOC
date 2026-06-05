@@ -45,3 +45,20 @@ Thumbs.db
 secrets/
 
 scripts/
+
+models/tts/kokoro-v1.0.onnx
+models/tts/voices-v1.0.bin
+# AI models
+ai-services/models/
+
+# TTS
+models/tts/
+
+# Ollama
+ai-services/models/ollama/
+
+# Whisper
+ai-services/models/stt/
+
+# HF cache
+**/hub/

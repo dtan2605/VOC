@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<body>
+<button id="start">Start Record</button>
+<button id="stop">Stop</button>
+<pre id="log"></pre>
+<script>
+const log = (msg) => document.getElementById('log').textContent += msg + '\n';
+document.getElementById('start').onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('mic ok, tracks: ' + stream.getAudioTracks().length);
+    const mr = new MediaRecorder(stream);
+    mr.ondataavailable = e => log('chunk: ' + e.data.size);
+    mr.start(200);
+    window._mr = mr;
+    window._stream = stream;
+  } catch (e) { log('err: ' + e.message); }
+};
+document.getElementById('stop').onclick = () => {
+  window._mr?.stop();
+  window._stream?.getTracks().forEach(t => t.stop());
+  log('stopped');
+};
+</script>
+</body>
+</html>

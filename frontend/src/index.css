@@ -122,6 +122,10 @@
     animation: voc-float-soft 6s ease-in-out infinite;
   }
 
+  .voc-spin-pulse {
+    animation: spin-pulse 1.2s linear infinite;
+  }
+
   .voc-shimmer {
     position: relative;
     overflow: hidden;
@@ -202,10 +206,23 @@
   20% {
     transform: translateX(-120%);
   }
-
   60%,
   100% {
     transform: translateX(120%);
+  }
+}
+
+@keyframes scale-breath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes spin-pulse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 

@@ -14,6 +14,7 @@ import AnalyticsDashboard from './pages/analytics/AnalyticsDashboard'
 import ProfilePage from './pages/profile/ProfilePage'
 import RecommendPage from './pages/recommend/RecommendPage'
 import WeakTopics from './pages/vocabulary/WeakTopics'
+import SpeakingPage from './pages/speaking/SpeakingPage'
 
 function App() {
   const { isAuthenticated, user, fetchProfile } = useAuth()
@@ -73,6 +74,10 @@ function App() {
       <Route
         path="/weak-topics"
         element={isAuthenticated ? <WeakTopics /> : <Navigate to="/auth" replace />}
+      />
+      <Route
+        path="/speaking"
+        element={isAuthenticated ? <SpeakingPage /> : <Navigate to="/auth" replace />}
       />
       <Route
         path="/profile"

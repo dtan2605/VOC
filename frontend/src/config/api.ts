@@ -7,4 +7,5 @@ export const API_ROUTES = {
   topics: '/api/topics',
   bands: '/api/bands',
   learning: '/api/learning',
+  speaking: '/api/speaking',
 } as const

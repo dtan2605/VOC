@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Mic,
   MoonStar,
   Sparkles,
   SunMedium,
@@ -71,6 +72,12 @@ const navItems: NavItem[] = [
     label: 'Learning',
     description: 'Review and quiz flow',
     icon: LayoutDashboard,
+  },
+  {
+    to: '/speaking',
+    label: 'Speaking',
+    description: 'Practice IELTS speaking',
+    icon: Mic,
   },
 ]
 

@@ -1,0 +1,1512 @@
+﻿from __future__ import annotations
+
+import asyncio
+import base64
+import io
+import json
+import logging
+import os
+import random
+import re
+import tempfile
+import threading
+import uuid
+import wave
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from functools import lru_cache
+from typing import Any, Awaitable, Callable, Literal
+
+import httpx
+import pymysql
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from pymysql.cursors import DictCursor
+
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional dependency at runtime
+    np = None
+
+try:
+    from faster_whisper import WhisperModel
+except Exception:  # pragma: no cover - optional dependency at runtime
+    WhisperModel = None
+
+try:
+    from kokoro_onnx import Kokoro
+except Exception:  # pragma: no cover - optional dependency at runtime
+    Kokoro = None
+
+logger = logging.getLogger("voc.speech-service")
+class SpeakingCreateRequest(BaseModel):
+    part: Literal["part_1", "part_2", "part_3"] = "part_1"
+    topic: str = ""
+    autoSpeak: bool = True
+    userGoal: str | None = None
+
+
+class SpeakingScoreBreakdown(BaseModel):
+    fluencyAndCoherence: float
+    lexicalResource: float
+    grammaticalRangeAccuracy: float
+    pronunciation: float
+    overall: float
+
+
+class SpeakingErrorItem(BaseModel):
+    issue: str
+    correction: str
+    example: str
+
+
+class SpeakingTurnResponse(BaseModel):
+    turnId: str
+    question: str
+    userTranscript: str
+    assistantReply: str
+    followUpQuestion: str
+    speakingSummary: str
+    pronunciationSummary: str
+    memorySummary: str
+    source: Literal["audio", "text"]
+    scores: SpeakingScoreBreakdown
+    errors: list[SpeakingErrorItem]
+    rephrasing: str
+    wordCount: int
+    ttsAudioBase64: str | None = None
+    ttsMimeType: str | None = None
+    createdAtUtc: str
+
+
+class SpeakingSessionResponse(BaseModel):
+    sessionId: str
+    part: Literal["part_1", "part_2", "part_3"]
+    topic: str
+    autoSpeak: bool
+    status: Literal["active", "completed"]
+    currentQuestion: str
+    memorySummary: str
+    turns: list[SpeakingTurnResponse] = Field(default_factory=list)
+    createdAtUtc: str
+    updatedAtUtc: str
+
+
+class SpeakingTurnResult(BaseModel):
+    session: SpeakingSessionResponse
+    turn: SpeakingTurnResponse
+
+
+class HealthResponse(BaseModel):
+    status: str
+    stt: str
+    llm: str
+    tts: str
+    memoryStore: str | None = None
+    whisperModel: str | None = None
+    ollamaModel: str | None = None
+    voice: str | None = None
+
+
+@dataclass
+class TurnState:
+    turn_id: str
+    turn_index: int
+    question: str
+    user_transcript: str
+    assistant_reply: str
+    follow_up_question: str
+    speaking_summary: str
+    pronunciation_summary: str
+    memory_summary: str
+    source: Literal["audio", "text"]
+    scores: dict[str, float]
+    errors: list[dict[str, str]]
+    rephrasing: str
+    word_count: int
+    tts_audio_base64: str | None
+    tts_mime_type: str | None
+    created_at_utc: datetime
+
+
+@dataclass
+class SessionState:
+    session_id: str
+    part: Literal["part_1", "part_2", "part_3"]
+    topic: str
+    user_goal: str | None
+    auto_speak: bool
+    status: Literal["active", "completed"]
+    current_question: str
+    memory_summary: str
+    turns: list[TurnState] = field(default_factory=list)
+    created_at_utc: datetime = field(default_factory=lambda: utc_now())
+    updated_at_utc: datetime = field(default_factory=lambda: utc_now())
+
+
+app = FastAPI(title="VOC Speech Service", version="1.0.0")
+
+origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://localhost",
+    ).split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins or ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+runtime_status = {"whisper": "fallback", "ollama": "fallback", "kokoro": "fallback", "memory": "loading"}
+session_cache_lock = threading.RLock()
+session_cache: dict[str, SessionState] = {}
+whisper_lock = threading.Lock()
+kokoro_lock = threading.Lock()
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def fmt_utc(value: datetime) -> str:
+    return value.replace(tzinfo=timezone.utc).isoformat()
+
+
+def clean(text: Any | None) -> str:
+    return re.sub(r"\s+", " ", str(text or "")).strip()
+
+
+def normalize_json_payload(content: Any) -> dict[str, Any] | None:
+    if isinstance(content, dict):
+        return content
+    text = clean(content)
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        pass
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
+
+
+def mime_type_to_suffix(mime_type: str | None) -> str:
+    normalized = clean(mime_type).lower()
+    if "mp4" in normalized or "m4a" in normalized:
+        return ".mp4"
+    if "ogg" in normalized:
+        return ".ogg"
+    if "wav" in normalized:
+        return ".wav"
+    if "webm" in normalized:
+        return ".webm"
+    return ".webm"
+
+
+def clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def truncate_words(text: str, max_words: int) -> str:
+    words = clean(text).split()
+    if len(words) <= max_words:
+        return " ".join(words)
+    return " ".join(words[:max_words]).rstrip(",;:") + "..."
+
+
+def topic_text(topic: str) -> str:
+    normalized = clean(topic)
+    return "" if normalized.lower() in {"", "open conversation"} else normalized
+
+
+def split_memory_items(summary: str) -> list[str]:
+    items: list[str] = []
+    seen: set[str] = set()
+    for chunk in re.split(r"(?:\s*\|\s*|\s*•\s*|\s*;\s*|\n+)", clean(summary)):
+        normalized = clean(chunk).rstrip(".")
+        if not normalized:
+            continue
+        normalized = re.sub(
+            r"^(?:the user mentioned|user mentioned|user said|user thinks|memory note|current conversation focus)\s*:\s*",
+            "",
+            normalized,
+            flags=re.IGNORECASE,
+        ).strip()
+        key = normalized.lower()
+        if not normalized or key in seen:
+            continue
+        seen.add(key)
+        items.append(normalized)
+    return items
+
+
+def strip_speaking_noise(text: str) -> str:
+    normalized = clean(text)
+    if not normalized:
+        return ""
+    return re.sub(
+        r"^(?:sorry|okay|well|um|uh|so|actually|please|here|first|second|third)\b[,.\s-]*",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def is_request_like(text: str) -> bool:
+    return bool(
+        re.match(
+            r"^(?:i want you to|i want to know|can you|could you|please|tell me|what about|how about|what do you think|do you think|would you|should i|let me know|help me)\b",
+            clean(text),
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def extract_memory_fact(text: str) -> str:
+    normalized = strip_speaking_noise(text)
+    if not normalized:
+        return ""
+
+    opinion_match = re.match(r"^(?:i think|in my opinion|i feel)\b[,.\s-]*(.*)$", normalized, flags=re.IGNORECASE)
+    if opinion_match:
+        content = clean(opinion_match.group(1)) or normalized
+        return truncate_words(f"User thinks {content}", 24)
+
+    if re.match(r"^(?:i like|i love|i enjoy|i prefer|i want|i need|i miss|i remember|i hate)\b", normalized, flags=re.IGNORECASE):
+        return truncate_words(f"User said: {normalized}", 24)
+
+    if re.match(r"^(?:my|they|he|she|it|we|you)\b", normalized, flags=re.IGNORECASE):
+        return truncate_words(f"User said: {normalized}", 24)
+
+    return truncate_words(f"User said: {normalized}", 24)
+
+
+def cache_session(session: SessionState) -> None:
+    with session_cache_lock:
+        session_cache[session.session_id] = session
+
+
+def get_cached_session(session_id: str) -> SessionState | None:
+    with session_cache_lock:
+        return session_cache.get(session_id)
+
+def db_host() -> str:
+    return os.getenv("SPEECH_DB_HOST", "localhost")
+
+
+def db_port() -> int:
+    return int(os.getenv("SPEECH_DB_PORT", "3306"))
+
+
+def db_name() -> str:
+    return os.getenv("SPEECH_DB_NAME", "voc_speaking")
+
+
+def db_user() -> str:
+    return os.getenv("SPEECH_DB_USER", "voc_user")
+
+
+def db_password() -> str:
+    return os.getenv("SPEECH_DB_PASSWORD", "ChangeMe123!")
+
+
+def connect_db() -> pymysql.connections.Connection:
+    return pymysql.connect(
+        host=db_host(),
+        port=db_port(),
+        user=db_user(),
+        password=db_password(),
+        database=db_name(),
+        charset="utf8mb4",
+        cursorclass=DictCursor,
+        autocommit=False,
+        connect_timeout=5,
+        read_timeout=10,
+        write_timeout=10,
+    )
+
+
+SCHEMA_SQL = [
+    """
+    CREATE TABLE IF NOT EXISTS speaking_sessions (
+        session_id VARCHAR(36) NOT NULL,
+        part VARCHAR(20) NOT NULL,
+        topic VARCHAR(255) NOT NULL,
+        user_goal LONGTEXT NULL,
+        auto_speak TINYINT(1) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        current_question LONGTEXT NOT NULL,
+        memory_summary LONGTEXT NOT NULL,
+        created_at_utc DATETIME(6) NOT NULL,
+        updated_at_utc DATETIME(6) NOT NULL,
+        PRIMARY KEY (session_id),
+        INDEX ix_speaking_sessions_status_updated (status, updated_at_utc)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS speaking_turns (
+        turn_id VARCHAR(36) NOT NULL,
+        session_id VARCHAR(36) NOT NULL,
+        turn_index INT NOT NULL,
+        question LONGTEXT NOT NULL,
+        user_transcript LONGTEXT NOT NULL,
+        assistant_reply LONGTEXT NOT NULL,
+        follow_up_question LONGTEXT NOT NULL,
+        speaking_summary LONGTEXT NOT NULL,
+        pronunciation_summary LONGTEXT NOT NULL,
+        memory_summary LONGTEXT NOT NULL,
+        source VARCHAR(10) NOT NULL,
+        scores_json LONGTEXT NOT NULL,
+        errors_json LONGTEXT NOT NULL,
+        rephrasing LONGTEXT NOT NULL,
+        word_count INT NOT NULL,
+        tts_audio_base64 LONGTEXT NULL,
+        tts_mime_type VARCHAR(100) NULL,
+        created_at_utc DATETIME(6) NOT NULL,
+        PRIMARY KEY (turn_id),
+        UNIQUE KEY ux_speaking_turns_session_index (session_id, turn_index),
+        INDEX ix_speaking_turns_session_created (session_id, created_at_utc),
+        CONSTRAINT fk_speaking_turns_session
+            FOREIGN KEY (session_id) REFERENCES speaking_sessions(session_id)
+            ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """,
+]
+
+
+def ensure_schema() -> bool:
+    try:
+        with connect_db() as connection:
+            with connection.cursor() as cursor:
+                for sql in SCHEMA_SQL:
+                    cursor.execute(sql)
+            connection.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Failed to ensure schema: %s", exc)
+        return False
+
+
+def json_dump(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def json_load(value: Any, default: Any) -> Any:
+    if value in (None, ""):
+        return default
+    try:
+        return json.loads(value)
+    except Exception:
+        return default
+
+
+def parse_db_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        except Exception:
+            pass
+    return utc_now()
+
+
+def extract_memory_clue(text: str) -> str:
+    normalized = strip_speaking_noise(text)
+    if not normalized:
+        return ""
+
+    candidate_sentences: list[tuple[int, int, int, str]] = []
+    for sentence in re.split(r"(?<=[.!?])\s+", normalized):
+        candidate = strip_speaking_noise(sentence).rstrip(".?!")
+        if not candidate or is_request_like(candidate) or candidate.endswith("?"):
+            continue
+
+        if re.match(r"^(?:what|who|how|when|where|why|which|can|do|does|did|is|are|am|was|were)\b", candidate, flags=re.IGNORECASE) and not re.search(r"\b(i|my|we)\b", candidate, flags=re.IGNORECASE):
+            continue
+
+        words = re.findall(r"[A-Za-z']+", candidate)
+        if len(words) < 4:
+            continue
+
+        score = 0
+        if re.search(r"\b(i|my|we|they|people|you|he|she|it)\b", candidate, flags=re.IGNORECASE):
+            score += 2
+        if re.search(
+            r"\b(is|are|was|were|have|has|had|like|love|enjoy|prefer|think|believe|usually|always|never|can|could|do|does|did|want|need|feel|say|make|help|sit|watch|talk|know|use|send|see)\b",
+            candidate,
+            flags=re.IGNORECASE,
+        ):
+            score += 2
+        if re.search(r"\b(because|so|but|also|however|instead)\b", candidate, flags=re.IGNORECASE):
+            score += 1
+        if candidate.lower().startswith(("i think", "in my opinion", "i feel", "i like", "i love", "my ", "they ", "he ", "she ", "it ")):
+            score += 1
+
+        candidate_sentences.append((score, len(words), len(candidate), candidate))
+
+    if candidate_sentences:
+        best = sorted(candidate_sentences, key=lambda item: (item[0], item[1], item[2]))[-1][3]
+        return truncate_words(best, 24)
+
+    words = re.findall(r"[A-Za-z']+", normalized)
+    if len(words) >= 6:
+        return truncate_words(normalized.rstrip(".?!"), 24)
+    return ""
+
+
+def should_store_raw_memory(transcript: str) -> bool:
+    normalized = strip_speaking_noise(transcript)
+    if not normalized or is_request_like(normalized) or normalized.endswith("?"):
+        return False
+
+    words = re.findall(r"[A-Za-z']+", normalized)
+    if len(words) < 6:
+        return False
+
+    if re.match(r"^(?:what|who|how|when|where|why|which|can|do|does|did|is|are|am|was|were)\b", normalized, flags=re.IGNORECASE):
+        return False
+
+    return True
+
+
+def fallback_memory_summary(previous: str, transcript: str, topic: str) -> str:
+    previous_items = split_memory_items(previous)
+    clue = extract_memory_clue(transcript)
+    if clue:
+        fact = extract_memory_fact(clue)
+        if fact and fact.lower() not in {item.lower() for item in previous_items}:
+            previous_items.append(fact)
+    elif should_store_raw_memory(transcript):
+        raw_snippet = truncate_words(strip_speaking_noise(transcript), 24)
+        if raw_snippet:
+            raw_fact = truncate_words(f"User said: {raw_snippet}", 24)
+            if raw_fact.lower() not in {item.lower() for item in previous_items}:
+                previous_items.append(raw_fact)
+    if not previous_items:
+        return "No stable memory yet."
+    return truncate_words("; ".join(previous_items[-4:]), 80)
+
+def fallback_scores(transcript: str) -> dict[str, float]:
+    words = re.findall(r"[A-Za-z']+", transcript.lower())
+    word_count = len(words)
+    unique_words = len(set(words))
+    filler_count = sum(words.count(term) for term in ["um", "uh", "like", "you", "know", "actually", "sort", "kind"])
+    lexical_diversity = unique_words / max(word_count, 1)
+    response_length_score = min(9.0, max(1.5, word_count / 8.0))
+    fluency = clamp(6.0 + min(1.5, lexical_diversity * 3) - min(2.0, filler_count * 0.4), 1.0, 9.0)
+    lexical = clamp(5.5 + lexical_diversity * 3.0, 1.0, 9.0)
+    grammar = clamp(5.0 + min(2.0, response_length_score / 3.0), 1.0, 9.0)
+    pronunciation = clamp(6.0 if word_count > 8 else 5.0, 1.0, 9.0)
+    overall = round((fluency + lexical + grammar + pronunciation) / 4.0, 1)
+    return {
+        "fluencyAndCoherence": round(fluency, 1),
+        "lexicalResource": round(lexical, 1),
+        "grammaticalRangeAccuracy": round(grammar, 1),
+        "pronunciation": round(pronunciation, 1),
+        "overall": overall,
+    }
+
+
+def fallback_errors(topic: str) -> list[dict[str, str]]:
+    focus = topic_text(topic) or "the topic"
+    return [
+        {"issue": "Add one more detail", "correction": "Try adding a concrete example or a short reason.", "example": f"You could mention a moment, feeling, or example related to {focus}."},
+        {"issue": "Keep it flowing", "correction": "Use short pauses instead of filler words when you think.", "example": "A brief pause often sounds more natural than saying 'um' or 'like'."},
+    ]
+
+
+def fallback_reply_summary(transcript: str) -> str:
+    word_count = len(re.findall(r"[A-Za-z']+", transcript))
+    if word_count == 0:
+        return "No worries — take your time and start wherever feels easiest."
+    if word_count < 12:
+        return random.choice([
+            "That comes through clearly, but a little more detail would make it stronger.",
+            "I can follow your idea. One more example would really help.",
+            "You’ve got a good start here — could you expand it a bit?",
+        ])
+    if word_count < 30:
+        return random.choice([
+            "That makes sense — the main idea is clear, and one more example would make it feel fuller.",
+            "I understand you, and a little more detail would make it even more natural.",
+            "That’s a solid answer; adding one more reason would round it out nicely.",
+        ])
+    return random.choice([
+        "That sounds natural and easy to follow — nice work.",
+        "That’s a thoughtful answer, and it flows well.",
+        "You explained that clearly, and it feels very conversational.",
+    ])
+
+
+def fallback_assistant_reply(topic: str, memory: str, transcript: str, turn_count: int) -> str:
+    focus = topic_text(topic)
+    memory_items = split_memory_items(memory)
+    memory_focus = memory_items[-1] if memory_items else ""
+    normalized = clean(transcript)
+    word_count = len(re.findall(r"[A-Za-z']+", normalized))
+    request_like = is_request_like(normalized)
+    lower_transcript = normalized.lower()
+
+    if not normalized:
+        return "No worries — take your time and say whatever comes to mind."
+
+    if request_like:
+        if focus:
+            options = [
+                f"Sure — if we stay with {focus.lower()}, I’d say there are both good and tricky sides to it. What stands out to you?",
+                f"Absolutely. Talking about {focus.lower()}, I think the interesting part is how people experience it differently. What do you think?",
+                f"Of course — {focus.lower()} can be a really good topic. What part would you like to focus on?",
+            ]
+            return options[turn_count % len(options)]
+        return random.choice([
+            "Sure — let’s keep it natural. What part would you like to start with?",
+            "Absolutely — tell me the part that matters most to you.",
+            "Of course — we can stay with that idea. What would you like to add next?",
+        ])
+
+    if memory_focus:
+        return random.choice([
+            f"That connects nicely with what you said earlier about {memory_focus}. I can follow your point.",
+            f"I remember you mentioning {memory_focus}. That gives the conversation a clear direction.",
+            f"That fits with what you shared before about {memory_focus}. I see why you’d feel that way.",
+        ])
+
+    if any(marker in lower_transcript for marker in ["because", "in my opinion", "i think", "i feel", "for example", "so ", "but "]):
+        return random.choice([
+            "That makes sense — I can follow your reasoning.",
+            "Yeah, I see what you mean. That’s a fair point.",
+            "I get it — your explanation is pretty clear.",
+        ])
+
+    if word_count < 10:
+        return random.choice([
+            "I get you — could you add one more detail?",
+            "That’s a good start. Can you give me one example?",
+            "I’m following you, and I’d love a little more detail.",
+        ])
+
+    if focus:
+        return random.choice([
+            f"That’s interesting — {focus.lower()} definitely gives us a lot to talk about.",
+            f"I can see why you’d bring up {focus.lower()} — it’s a topic with lots of angles.",
+            f"That’s a nice point about {focus.lower()}. What do you like most about it?",
+        ])
+
+    return random.choice([
+        "That’s interesting — tell me a little more about that.",
+        "I can follow your point. What happened next?",
+        "That makes sense. Could you share one more example?",
+    ])
+
+
+def fallback_pronunciation_summary(transcript: str) -> str:
+    words = re.findall(r"[A-Za-z']+", transcript.lower())
+    filler_count = sum(words.count(term) for term in ["um", "uh", "like", "you", "know"])
+    if not words:
+        return "No pronunciation signal was captured from the transcript."
+    if filler_count > 4:
+        return "The pacing sounds a little uneven, so fewer fillers and shorter pauses would help it feel more natural."
+    if len(words) < 12:
+        return "The sentence is short, but it looks like it would sound clear and simple."
+    return "The pacing looks steady, so just keep the stress and pauses relaxed."
+
+
+def fallback_follow_up(part: Literal["part_1", "part_2", "part_3"], topic: str, memory: str, transcript: str, turn_count: int) -> str:
+    focus = topic_text(topic)
+    memory = clean(memory)
+    clue = extract_memory_clue(transcript)
+    if focus:
+        if part == "part_2":
+            return f"Can you describe a memorable experience related to {focus.lower()} and explain why it mattered to you?"
+        if part == "part_3":
+            return f"Why do you think {focus.lower()} matters in everyday life, and how do you see it changing in the future?"
+        options = [
+            f"What do you enjoy most about {focus.lower()}?",
+            f"How has {focus.lower()} changed your daily life?",
+            f"Can you tell me about a recent experience with {focus.lower()}?",
+            f"What would you like to change or improve about {focus.lower()}?",
+        ]
+        return options[turn_count % len(options)]
+    if memory:
+        memory_focus = split_memory_items(memory)[-1] if split_memory_items(memory) else ""
+        options = [
+            f"You mentioned {truncate_words(memory_focus, 10)} — can you tell me a bit more about that?" if memory_focus else "Can you tell me a bit more about that?",
+            "What made that stand out for you?",
+            "How did that affect you?",
+            "Can you share one example?",
+        ]
+        return options[turn_count % len(options)]
+    if clue:
+        if clue.lower().startswith(("i ", "my ", "i'm", "i am")):
+            return "Can you tell me a little more about that?"
+        return f"Can you tell me a little more about {clue}?"
+    options = [
+        "What’s something that matters to you about that?",
+        "Can you explain that a little more?",
+        "How did that make you feel?",
+        "Is there a concrete example you can share?",
+    ]
+    return options[turn_count % len(options)]
+
+
+def fallback_turn(session: SessionState, transcript: str) -> dict[str, Any]:
+    memory = fallback_memory_summary(session.memory_summary, transcript, session.topic)
+    return {
+        "assistantReply": fallback_reply_summary(transcript),
+        "followUpQuestion": fallback_follow_up(session.part, session.topic, memory, transcript, len(session.turns)),
+        "speakingSummary": fallback_reply_summary(transcript),
+        "pronunciationSummary": fallback_pronunciation_summary(transcript),
+        "memorySummary": memory,
+        "scores": fallback_scores(transcript),
+        "errors": fallback_errors(session.topic),
+        "rephrasing": clean(transcript).capitalize() or f"I'd like to talk more about {topic_text(session.topic) or 'this topic'} in a clearer way.",
+    }
+
+
+def normalize_errors(raw_errors: Any, topic: str) -> list[dict[str, str]]:
+    result: list[dict[str, str]] = []
+    if isinstance(raw_errors, list):
+        for item in raw_errors[:3]:
+            if isinstance(item, dict):
+                result.append({"issue": clean(item.get("issue")), "correction": clean(item.get("correction")), "example": clean(item.get("example"))})
+    return result or fallback_errors(topic)
+
+
+def normalize_scores(raw_scores: Any, transcript: str) -> dict[str, float]:
+    base = fallback_scores(transcript)
+    if not isinstance(raw_scores, dict):
+        return base
+    try:
+        scores = {
+            "fluencyAndCoherence": float(raw_scores.get("fluencyAndCoherence", base["fluencyAndCoherence"])),
+            "lexicalResource": float(raw_scores.get("lexicalResource", base["lexicalResource"])),
+            "grammaticalRangeAccuracy": float(raw_scores.get("grammaticalRangeAccuracy", base["grammaticalRangeAccuracy"])),
+            "pronunciation": float(raw_scores.get("pronunciation", base["pronunciation"])),
+            "overall": float(raw_scores.get("overall", base["overall"])),
+        }
+    except (TypeError, ValueError):
+        return base
+    return {key: round(clamp(value, 1.0, 9.0), 1) for key, value in scores.items()}
+
+
+def parse_db_datetime(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        except Exception:
+            pass
+    return utc_now()
+
+
+def turn_from_row(row: dict[str, Any]) -> TurnState:
+    transcript = clean(row.get("user_transcript"))
+    return TurnState(
+        turn_id=str(row["turn_id"]),
+        turn_index=int(row["turn_index"]),
+        question=clean(row.get("question")),
+        user_transcript=transcript,
+        assistant_reply=clean(row.get("assistant_reply")),
+        follow_up_question=clean(row.get("follow_up_question")),
+        speaking_summary=clean(row.get("speaking_summary")),
+        pronunciation_summary=clean(row.get("pronunciation_summary")),
+        memory_summary=clean(row.get("memory_summary")),
+        source="audio" if str(row.get("source", "text")).lower() == "audio" else "text",
+        scores=normalize_scores(json_load(row.get("scores_json"), {}), transcript),
+        errors=normalize_errors(json_load(row.get("errors_json"), []), ""),
+        rephrasing=clean(row.get("rephrasing")) or transcript,
+        word_count=int(row.get("word_count") or 0),
+        tts_audio_base64=row.get("tts_audio_base64") or None,
+        tts_mime_type=row.get("tts_mime_type") or None,
+        created_at_utc=parse_db_datetime(row.get("created_at_utc")),
+    )
+
+
+def session_from_row(row: dict[str, Any], turns: list[TurnState]) -> SessionState:
+    return SessionState(
+        session_id=str(row["session_id"]),
+        part=row.get("part") if row.get("part") in {"part_1", "part_2", "part_3"} else "part_1",
+        topic=clean(row.get("topic")) or "Open conversation",
+        user_goal=clean(row.get("user_goal")) or None,
+        auto_speak=bool(row.get("auto_speak")),
+        status="completed" if str(row.get("status")) == "completed" else "active",
+        current_question=clean(row.get("current_question")),
+        memory_summary="; ".join(split_memory_items(clean(row.get("memory_summary"))))[:1000],
+        turns=turns,
+        created_at_utc=parse_db_datetime(row.get("created_at_utc")),
+        updated_at_utc=parse_db_datetime(row.get("updated_at_utc")),
+    )
+
+
+def to_response_turn(state: TurnState) -> SpeakingTurnResponse:
+    return SpeakingTurnResponse(
+        turnId=state.turn_id,
+        question=state.question,
+        userTranscript=state.user_transcript,
+        assistantReply=state.assistant_reply,
+        followUpQuestion=state.follow_up_question,
+        speakingSummary=state.speaking_summary,
+        pronunciationSummary=state.pronunciation_summary,
+        memorySummary=state.memory_summary,
+        source=state.source,
+        scores=SpeakingScoreBreakdown(**state.scores),
+        errors=[SpeakingErrorItem(**item) for item in state.errors],
+        rephrasing=state.rephrasing,
+        wordCount=state.word_count,
+        ttsAudioBase64=state.tts_audio_base64,
+        ttsMimeType=state.tts_mime_type,
+        createdAtUtc=fmt_utc(state.created_at_utc),
+    )
+
+
+def to_response_session(state: SessionState) -> SpeakingSessionResponse:
+    return SpeakingSessionResponse(
+        sessionId=state.session_id,
+        part=state.part,
+        topic=state.topic,
+        autoSpeak=state.auto_speak,
+        status=state.status,
+        currentQuestion=state.current_question,
+        memorySummary=state.memory_summary,
+        turns=[to_response_turn(turn) for turn in state.turns],
+        createdAtUtc=fmt_utc(state.created_at_utc),
+        updatedAtUtc=fmt_utc(state.updated_at_utc),
+    )
+
+def persist_session(session: SessionState) -> bool:
+    try:
+        with connect_db() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO speaking_sessions (
+                        session_id, part, topic, user_goal, auto_speak, status,
+                        current_question, memory_summary, created_at_utc, updated_at_utc
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON DUPLICATE KEY UPDATE
+                        part=VALUES(part), topic=VALUES(topic), user_goal=VALUES(user_goal),
+                        auto_speak=VALUES(auto_speak), status=VALUES(status),
+                        current_question=VALUES(current_question), memory_summary=VALUES(memory_summary),
+                        updated_at_utc=VALUES(updated_at_utc)
+                    """,
+                    (
+                        session.session_id,
+                        session.part,
+                        session.topic,
+                        session.user_goal,
+                        1 if session.auto_speak else 0,
+                        session.status,
+                        session.current_question,
+                        session.memory_summary,
+                        session.created_at_utc,
+                        session.updated_at_utc,
+                    ),
+                )
+            connection.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Failed to persist session %s: %s", session.session_id, exc)
+        return False
+
+
+def persist_turn(session: SessionState, turn: TurnState) -> bool:
+    try:
+        with connect_db() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO speaking_turns (
+                        turn_id, session_id, turn_index, question, user_transcript,
+                        assistant_reply, follow_up_question, speaking_summary,
+                        pronunciation_summary, memory_summary, source, scores_json,
+                        errors_json, rephrasing, word_count, tts_audio_base64,
+                        tts_mime_type, created_at_utc
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """,
+                    (
+                        turn.turn_id,
+                        session.session_id,
+                        turn.turn_index,
+                        turn.question,
+                        turn.user_transcript,
+                        turn.assistant_reply,
+                        turn.follow_up_question,
+                        turn.speaking_summary,
+                        turn.pronunciation_summary,
+                        turn.memory_summary,
+                        turn.source,
+                        json_dump(turn.scores),
+                        json_dump(turn.errors),
+                        turn.rephrasing,
+                        turn.word_count,
+                        turn.tts_audio_base64,
+                        turn.tts_mime_type,
+                        turn.created_at_utc,
+                    ),
+                )
+            connection.commit()
+        return True
+    except Exception as exc:
+        logger.warning("Failed to persist turn %s: %s", turn.turn_id, exc)
+        return False
+
+
+def persist_session_with_turn(session: SessionState, turn: TurnState) -> None:
+    persist_session(session)
+    persist_turn(session, turn)
+
+
+def load_session_from_db(session_id: str) -> SessionState | None:
+    try:
+        with connect_db() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM speaking_sessions WHERE session_id=%s", (session_id,))
+                session_row = cursor.fetchone()
+                if not session_row:
+                    return None
+                cursor.execute("SELECT * FROM speaking_turns WHERE session_id=%s ORDER BY turn_index ASC", (session_id,))
+                turn_rows = cursor.fetchall() or []
+        turns = [turn_from_row(row) for row in turn_rows]
+        session = session_from_row(session_row, turns)
+        cache_session(session)
+        return session
+    except Exception as exc:
+        logger.warning("Failed to load session %s: %s", session_id, exc)
+        return None
+
+
+def load_session(session_id: str) -> SessionState | None:
+    cached = get_cached_session(session_id)
+    if cached:
+        return cached
+    return load_session_from_db(session_id)
+
+
+def build_history_text(turns: list[TurnState]) -> str:
+    if not turns:
+        return "(no prior turns)"
+    return "\n".join(f"Q: {turn.question}\nA: {turn.user_transcript}\nCoach: {turn.assistant_reply}" for turn in turns[-4:])
+
+
+def build_recent_assistant_replies(turns: list[TurnState], limit: int = 3) -> str:
+    replies = [clean(turn.assistant_reply) for turn in turns[-limit:] if clean(turn.assistant_reply)]
+    if not replies:
+        return "(none yet)"
+    return "\n".join(f"- {reply}" for reply in replies)
+
+
+def assistant_reply_needs_rewrite(reply: str, recent_replies_text: str) -> bool:
+    normalized_reply = clean(reply).lower()
+    if not normalized_reply:
+        return True
+
+    stock_phrases = [
+        "i remember you mentioning",
+        "that connects nicely",
+        "i can follow your point",
+        "that makes sense",
+        "i'm glad you brought that up",
+        "you mentioned",
+        "that fits with what you shared",
+    ]
+    if any(phrase in normalized_reply for phrase in stock_phrases):
+        return True
+
+    reply_tokens = set(re.findall(r"[A-Za-z']+", normalized_reply))
+    if len(reply_tokens) < 6:
+        return False
+
+    for line in recent_replies_text.splitlines():
+        recent_reply = clean(line.lstrip("- ").strip()).lower()
+        if not recent_reply:
+            continue
+        recent_tokens = set(re.findall(r"[A-Za-z']+", recent_reply))
+        if not recent_tokens:
+            continue
+        overlap = len(reply_tokens & recent_tokens) / max(len(reply_tokens | recent_tokens), 1)
+        if overlap >= 0.55:
+            return True
+
+    return False
+
+
+def ollama_base_url() -> str:
+    configured = os.getenv("OLLAMA_BASE_URL")
+    if configured:
+        return configured.rstrip("/")
+    return "http://host.docker.internal:11434" if os.path.exists("/.dockerenv") else "http://localhost:11434"
+
+
+def ollama_model_name() -> str:
+    return os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+
+
+def use_ollama() -> bool:
+    return runtime_status["ollama"] == "ready"
+
+
+@lru_cache(maxsize=1)
+def load_whisper_model() -> WhisperModel | None:
+    if WhisperModel is None:
+        return None
+    with whisper_lock:
+        try:
+            return WhisperModel(
+                os.getenv("WHISPER_MODEL", "small.en"),
+                device=os.getenv("WHISPER_DEVICE", "cpu"),
+                compute_type=os.getenv("WHISPER_COMPUTE_TYPE", "int8"),
+            )
+        except Exception as exc:
+            logger.warning("Failed to load Whisper: %s", exc)
+            return None
+
+
+@lru_cache(maxsize=1)
+def load_kokoro() -> Any | None:
+    if Kokoro is None:
+        return None
+    model_path = os.getenv("KOKORO_MODEL_PATH", "/app/models/tts/kokoro-v1.0.onnx")
+    voices_path = os.getenv("KOKORO_VOICES_PATH", "/app/models/tts/voices-v1.0.bin")
+    if not os.path.exists(model_path) or not os.path.exists(voices_path):
+        return None
+    with kokoro_lock:
+        try:
+            return Kokoro(model_path, voices_path)
+        except Exception as exc:
+            logger.warning("Failed to load Kokoro: %s", exc)
+            return None
+
+
+def encode_wav_base64(samples: Any, sample_rate: int) -> str | None:
+    if np is None:
+        return None
+    audio = np.asarray(samples, dtype=np.float32).reshape(-1)
+    if audio.size == 0:
+        return None
+    audio = np.clip(audio, -1.0, 1.0)
+    pcm = (audio * 32767).astype(np.int16)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(int(sample_rate))
+        wav_file.writeframes(pcm.tobytes())
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def synthesize_speech_sync(text: str) -> tuple[str | None, str | None]:
+    normalized = truncate_words(text, int(os.getenv("TTS_MAX_WORDS", "80")))
+    if not normalized:
+        return None, None
+    kokoro = load_kokoro()
+    if kokoro is None:
+        runtime_status["kokoro"] = "fallback"
+        return None, None
+    try:
+        samples, sample_rate = kokoro.create(
+            normalized,
+            voice=os.getenv("TTS_VOICE", "af_bella"),
+            speed=float(os.getenv("TTS_SPEED", "1.0")),
+            lang=os.getenv("TTS_LANG", "en-us"),
+        )
+        audio_base64 = encode_wav_base64(samples, int(sample_rate))
+        if audio_base64:
+            runtime_status["kokoro"] = "ready"
+            return audio_base64, "audio/wav"
+    except Exception as exc:
+        logger.warning("Kokoro synthesis failed: %s", exc)
+    runtime_status["kokoro"] = "fallback"
+    return None, None
+
+
+async def synthesize_speech(text: str) -> tuple[str | None, str | None]:
+    return await asyncio.to_thread(synthesize_speech_sync, text)
+
+
+async def transcribe_audio_bytes(audio_bytes: bytes, suffix: str = ".webm") -> str:
+    model = load_whisper_model()
+    if model is None or not audio_bytes:
+        return ""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(audio_bytes)
+        temp_path = temp_file.name
+    try:
+        segments, _ = model.transcribe(temp_path, vad_filter=True)
+        return clean(" ".join(segment.text.strip() for segment in segments).strip())
+    finally:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+
+
+async def transcribe_audio_upload(upload: UploadFile) -> str:
+    return await transcribe_audio_bytes(await upload.read(), suffix=os.path.splitext(upload.filename or "")[1] or ".webm")
+
+
+async def call_ollama_json(system_prompt: str, user_prompt: str, *, temperature: float = 0.35) -> dict[str, Any] | None:
+    payload = {
+        "model": ollama_model_name(),
+        "stream": False,
+        "format": "json",
+        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+        "options": {
+            "temperature": temperature,
+            "top_p": 0.95,
+            "repeat_penalty": 1.15,
+            "repeat_last_n": 128,
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(f"{ollama_base_url()}/api/chat", json=payload)
+            response.raise_for_status()
+            outer = response.json()
+            content = outer.get("message", {}).get("content", "")
+            parsed = normalize_json_payload(content)
+            if parsed is not None:
+                runtime_status["ollama"] = "ready"
+            return parsed
+    except Exception as exc:
+        logger.warning("Ollama JSON call failed: %s", exc)
+        runtime_status["ollama"] = "fallback"
+        return None
+
+
+async def call_ollama_json_with_timeout(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    timeout_seconds: float,
+    context: str,
+    temperature: float = 0.35,
+) -> dict[str, Any] | None:
+    try:
+        return await asyncio.wait_for(
+            call_ollama_json(system_prompt, user_prompt, temperature=temperature),
+            timeout=timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("%s timed out after %.1fs; using fallback", context, timeout_seconds)
+        return None
+
+
+async def rewrite_assistant_reply(
+    session: SessionState,
+    transcript: str,
+    current_reply: str,
+    recent_replies: str,
+) -> str | None:
+    system_prompt = (
+        "You rewrite assistant replies so they sound natural, varied, and human. "
+        "Return valid JSON only."
+    )
+    user_prompt = (
+        f"Conversation style: {session.part.replace('_', ' ').title()}\n"
+        f"Conversation topic: {topic_text(session.topic) or 'free conversation'}\n"
+        f"User goal: {session.user_goal or 'none'}\n"
+        f"Current memory summary: {session.memory_summary or '(empty)'}\n"
+        f"Recent assistant replies:\n{recent_replies}\n\n"
+        f"Latest user answer:\n{transcript}\n\n"
+        f"Current reply:\n{current_reply}\n\n"
+        "Rewrite the current reply into 2-3 short conversational sentences. "
+        "Avoid stock coaching phrases, avoid repeating the user's wording, and make it feel like a real person responding in a chat."
+    )
+    payload = await call_ollama_json_with_timeout(
+        system_prompt,
+        user_prompt,
+        timeout_seconds=8,
+        context="Reply rewrite",
+        temperature=0.75,
+    )
+    if not payload:
+        return None
+    return clean(payload.get("assistantReply")) or None
+
+
+async def generate_session_question(request: SpeakingCreateRequest) -> str:
+    system_prompt = (
+        "You are a warm, natural conversation partner and IELTS speaking coach. Ask exactly one short opening question. "
+        "Avoid generic openers like 'What's on your mind today?'. Return JSON with a single key named question."
+    )
+    user_prompt = (
+        f"Conversation style: {request.part.replace('_', ' ').title()}\n"
+        f"Topic: {topic_text(request.topic) or 'free conversation'}\n"
+        f"User goal: {clean(request.userGoal) or 'none'}\n"
+        "Ask a warm, concise opening question that starts a natural conversation."
+    )
+    payload = await call_ollama_json_with_timeout(
+        system_prompt,
+        user_prompt,
+        timeout_seconds=8,
+        context="Opening question generation",
+        temperature=0.55,
+    )
+    question = clean((payload or {}).get("question"))
+    if question:
+        return question
+    focus = topic_text(request.topic)
+    if focus:
+        if request.part == "part_2":
+            return f"Can you describe a memorable experience related to {focus.lower()} and explain why it mattered to you?"
+        if request.part == "part_3":
+            return f"Why do you think {focus.lower()} matters in everyday life, and how do you see it changing in the future?"
+        return random.choice([
+            f"What do you enjoy most about {focus.lower()}?",
+            f"How has {focus.lower()} changed your daily life?",
+            f"Can you tell me about a recent experience with {focus.lower()}?",
+        ])
+    return random.choice([
+        "What would you like to talk about first?",
+        "Tell me something interesting from your day.",
+        "Is there a topic you’d enjoy exploring together?",
+        "What’s one thing you’d like to share right now?",
+    ])
+
+def fallback_turn(session: SessionState, transcript: str) -> dict[str, Any]:
+    memory = fallback_memory_summary(session.memory_summary, transcript, session.topic)
+    return {
+        "assistantReply": fallback_assistant_reply(session.topic, memory, transcript, len(session.turns)),
+        "followUpQuestion": fallback_follow_up(session.part, session.topic, memory, transcript, len(session.turns)),
+        "speakingSummary": fallback_reply_summary(transcript),
+        "pronunciationSummary": fallback_pronunciation_summary(transcript),
+        "memorySummary": memory,
+        "scores": fallback_scores(transcript),
+        "errors": fallback_errors(session.topic),
+        "rephrasing": clean(transcript).capitalize() or f"I'd like to talk more about {topic_text(session.topic) or 'this topic'} in a clearer way.",
+    }
+
+
+async def evaluate_turn(session: SessionState, transcript: str) -> dict[str, Any]:
+    history_text = build_history_text(session.turns)
+    recent_assistant_replies = build_recent_assistant_replies(session.turns)
+    system_prompt = (
+        "You are a warm, natural conversation partner and IELTS speaking coach. "
+        "Keep the reply human, casual, and supportive. Never sound like a grading report. "
+        "Use the memory summary only for stable facts, and return valid JSON only. "
+        "Do not mention the memory summary directly. "
+        "Avoid repetitive openers like 'I remember you mentioning', 'That connects nicely', 'I can follow your point', or 'That makes sense'. "
+        "Vary your sentence openings and sound like a real person talking."
+    )
+    user_prompt = (
+        f"Conversation style: {session.part.replace('_', ' ').title()}\n"
+        f"Conversation topic: {topic_text(session.topic) or 'free conversation'}\n"
+        f"User goal: {session.user_goal or 'none'}\n"
+        f"Current memory summary: {session.memory_summary or '(empty)'}\n"
+        f"Recent assistant replies:\n{recent_assistant_replies}\n\n"
+        f"Conversation history:\n{history_text}\n\n"
+        f"Latest user answer:\n{transcript}\n\n"
+        "Return JSON with exactly these keys:\n"
+        "{\n"
+        '  "assistantReply": "2-3 short conversational sentences",\n'
+        '  "followUpQuestion": "one natural follow-up question that continues the conversation",\n'
+        '  "speakingSummary": "1-2 short sentences about fluency, coherence, and content quality",\n'
+        '  "pronunciationSummary": "1 short sentence about pronunciation and pacing",\n'
+        '  "memorySummary": "a concise memory note that keeps stable facts or preferences for future turns. Keep it reusable in prompts, either as a short raw snippet or a short summary.",\n'
+        '  "scores": {\n'
+        '    "fluencyAndCoherence": 1-9,\n'
+        '    "lexicalResource": 1-9,\n'
+        '    "grammaticalRangeAccuracy": 1-9,\n'
+        '    "pronunciation": 1-9,\n'
+        '    "overall": 1-9\n'
+        "  },\n"
+        '  "errors": [\n'
+        '    {"issue": "short label", "correction": "helpful advice", "example": "one short example"}\n'
+        "  ],\n"
+        '  "rephrasing": "an improved version of the user\'s answer"\n'
+        "}\n\n"
+        "Rules: avoid generic openers, keep the reply warm and natural, update the memory using only stable details, do not repeat the user's sentence verbatim, avoid echoing the user's exact words, and make the follow-up question feel like real conversation."
+    )
+    payload = await call_ollama_json_with_timeout(
+        system_prompt,
+        user_prompt,
+        timeout_seconds=12,
+        context="Turn evaluation",
+        temperature=0.6,
+    )
+    if not payload:
+        return fallback_turn(session, transcript)
+    assistant_reply = clean(payload.get("assistantReply")) or fallback_assistant_reply(session.topic, session.memory_summary, transcript, len(session.turns))
+    if assistant_reply_needs_rewrite(assistant_reply, recent_assistant_replies):
+        rewritten_reply = await rewrite_assistant_reply(session, transcript, assistant_reply, recent_assistant_replies)
+        if rewritten_reply:
+            assistant_reply = rewritten_reply
+
+    return {
+        "assistantReply": assistant_reply,
+        "followUpQuestion": clean(payload.get("followUpQuestion")) or fallback_follow_up(session.part, session.topic, session.memory_summary, transcript, len(session.turns)),
+        "speakingSummary": clean(payload.get("speakingSummary")) or fallback_reply_summary(transcript),
+        "pronunciationSummary": clean(payload.get("pronunciationSummary")) or fallback_pronunciation_summary(transcript),
+        "memorySummary": truncate_words(clean(payload.get("memorySummary")) or fallback_memory_summary(session.memory_summary, transcript, session.topic), 80),
+        "scores": normalize_scores(payload.get("scores"), transcript),
+        "errors": normalize_errors(payload.get("errors"), session.topic),
+        "rephrasing": clean(payload.get("rephrasing")) or clean(transcript),
+    }
+
+
+def build_turn(session: SessionState, transcript: str, source: Literal["audio", "text"], analysis: dict[str, Any]) -> TurnState:
+    turn_index = len(session.turns) + 1
+    return TurnState(
+        turn_id=str(uuid.uuid4()),
+        turn_index=turn_index,
+        question=session.current_question,
+        user_transcript=transcript,
+        assistant_reply=analysis["assistantReply"],
+        follow_up_question=analysis["followUpQuestion"],
+        speaking_summary=analysis["speakingSummary"],
+        pronunciation_summary=analysis["pronunciationSummary"],
+        memory_summary=analysis["memorySummary"],
+        source=source,
+        scores=analysis["scores"],
+        errors=analysis["errors"],
+        rephrasing=analysis["rephrasing"],
+        word_count=len(re.findall(r"[A-Za-z']+", transcript)),
+        tts_audio_base64=None,
+        tts_mime_type=None,
+        created_at_utc=utc_now(),
+    )
+
+
+async def process_turn(session: SessionState, transcript: str, source: Literal["audio", "text"], emit: Callable[[dict[str, Any]], Awaitable[None]] | None = None) -> TurnState:
+    if emit:
+        await emit({"type": "turn_started", "source": source, "transcript": transcript})
+    analysis = await evaluate_turn(session, transcript)
+    turn = build_turn(session, transcript, source, analysis)
+    assistant_text = clean(f"{turn.assistant_reply} {turn.follow_up_question}")
+    turn.tts_audio_base64, turn.tts_mime_type = await synthesize_speech(assistant_text)
+    session.memory_summary = turn.memory_summary
+    session.current_question = turn.follow_up_question
+    session.updated_at_utc = utc_now()
+    session.status = "active"
+    session.turns.append(turn)
+    cache_session(session)
+    persist_session_with_turn(session, turn)
+    if emit:
+        await emit({
+            "type": "analysis",
+            "speakingSummary": turn.speaking_summary,
+            "pronunciationSummary": turn.pronunciation_summary,
+            "memorySummary": turn.memory_summary,
+            "scores": turn.scores,
+            "errors": turn.errors,
+            "rephrasing": turn.rephrasing,
+            "expectedAnswer": turn.follow_up_question,
+        })
+        await emit({
+            "type": "assistant_sentence",
+            "text": clean(f"{turn.assistant_reply}\n\n{turn.follow_up_question}"),
+            "index": 0,
+            "audioBase64": turn.tts_audio_base64,
+            "mimeType": turn.tts_mime_type,
+            "final": True,
+        })
+        await emit({"type": "turn_complete", "session": jsonable_encoder(to_response_session(session)), "turn": jsonable_encoder(to_response_turn(turn))})
+    return turn
+
+
+async def warmup_runtime() -> None:
+    runtime_status["memory"] = "ready" if await asyncio.to_thread(ensure_schema) else "fallback"
+    runtime_status["whisper"] = "ready" if await asyncio.to_thread(load_whisper_model) is not None else "fallback"
+    runtime_status["kokoro"] = "ready" if await asyncio.to_thread(load_kokoro) is not None else "fallback"
+    runtime_status["ollama"] = await check_ollama_model_status()
+
+
+async def check_ollama_model_status() -> str:
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            response = await client.get(f"{ollama_base_url()}/api/tags")
+            response.raise_for_status()
+            payload = response.json()
+    except Exception:
+        return "fallback"
+    models = payload.get("models", [])
+    if isinstance(models, list):
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            name = clean(item.get("name"))
+            if name == ollama_model_name() or name == f"{ollama_model_name()}:latest":
+                return "ready"
+    return "fallback"
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    asyncio.create_task(warmup_runtime())
+
+
+@app.get("/health", response_model=HealthResponse)
+@app.get("/api/speaking/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    return HealthResponse(
+        status="ok",
+        stt=runtime_status["whisper"],
+        llm=runtime_status["ollama"],
+        tts=runtime_status["kokoro"],
+        memoryStore=runtime_status["memory"],
+        whisperModel=os.getenv("WHISPER_MODEL", "small.en"),
+        ollamaModel=ollama_model_name(),
+        voice=os.getenv("TTS_VOICE", "af_bella"),
+    )
+
+
+async def create_session_state(request: SpeakingCreateRequest) -> SessionState:
+    goal_text = clean(request.userGoal)
+    memory_seed = truncate_words(f"User goal: {goal_text}", 18) if goal_text else ""
+    session = SessionState(
+        session_id=str(uuid.uuid4()),
+        part=request.part,
+        topic=clean(request.topic) or "Open conversation",
+        user_goal=goal_text or None,
+        auto_speak=request.autoSpeak,
+        status="active",
+        current_question=await generate_session_question(request),
+        memory_summary=memory_seed,
+    )
+    cache_session(session)
+    persist_session(session)
+    return session
+
+
+@app.post("/api/speaking/sessions", response_model=SpeakingSessionResponse, status_code=201)
+async def create_session(request: SpeakingCreateRequest) -> SpeakingSessionResponse:
+    return to_response_session(await create_session_state(request))
+
+
+@app.get("/api/speaking/sessions/{session_id}", response_model=SpeakingSessionResponse)
+async def get_session(session_id: str) -> SpeakingSessionResponse:
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Speaking session not found.")
+    return to_response_session(session)
+
+
+@app.post("/api/speaking/sessions/{session_id}/turns", response_model=SpeakingTurnResult)
+async def submit_turn(session_id: str, text: str | None = Form(default=None), audio: UploadFile | None = File(default=None)) -> SpeakingTurnResult:
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Speaking session not found.")
+    transcript = clean(text)
+    source: Literal["audio", "text"] = "text"
+    if audio is not None and not transcript:
+        transcript = await transcribe_audio_upload(audio)
+        source = "audio"
+    if not transcript:
+        raise HTTPException(status_code=400, detail="Provide audio or typed text for the speaking turn.")
+    turn = await process_turn(session, transcript, source)
+    return SpeakingTurnResult(session=to_response_session(session), turn=to_response_turn(turn))
+
+
+@app.websocket("/api/speaking/ws")
+async def speaking_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    session: SessionState | None = None
+    audio_buffer = bytearray()
+    recording_active = False
+    recording_mime_type: str | None = None
+
+    async def emit(payload: dict[str, Any]) -> None:
+        await websocket.send_json(jsonable_encoder(payload))
+
+    try:
+        while True:
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            if message.get("bytes") is not None:
+                if recording_active:
+                    audio_buffer.extend(message["bytes"])
+                continue
+
+            text_message = message.get("text")
+            if not text_message:
+                continue
+
+            data = json.loads(text_message)
+            message_type = data.get("type")
+
+            if message_type == "start":
+                request = SpeakingCreateRequest(part=data.get("part", "part_1"), topic=data.get("topic", ""), autoSpeak=bool(data.get("autoSpeak", True)), userGoal=data.get("userGoal"))
+                session = await create_session_state(request)
+                await emit({"type": "session_started", "session": jsonable_encoder(to_response_session(session))})
+                opening_audio_base64, opening_mime_type = await synthesize_speech(session.current_question)
+                await emit({
+                    "type": "assistant_sentence",
+                    "text": session.current_question,
+                    "index": 0,
+                    "audioBase64": opening_audio_base64,
+                    "mimeType": opening_mime_type,
+                    "final": True,
+                })
+                continue
+
+            if session is None:
+                await emit({"type": "error", "message": "Start a session before sending audio or text."})
+                continue
+
+            if message_type == "audio_start":
+                audio_buffer = bytearray()
+                recording_active = True
+                recording_mime_type = clean(data.get("mimeType")) or None
+                await emit({"type": "segment_started"})
+                continue
+
+            if message_type == "audio_end":
+                recording_active = False
+                if not audio_buffer:
+                    await emit({"type": "segment_empty"})
+                    continue
+                transcript = await transcribe_audio_bytes(bytes(audio_buffer), suffix=mime_type_to_suffix(recording_mime_type))
+                audio_buffer = bytearray()
+                recording_mime_type = None
+                if not transcript:
+                    await emit({"type": "transcript", "text": ""})
+                    await emit({"type": "turn_skipped", "reason": "empty_transcript"})
+                    continue
+                await emit({"type": "transcript", "text": transcript})
+                await process_turn(session, transcript, "audio", emit=emit)
+                continue
+
+            if message_type == "text":
+                transcript = clean(data.get("text"))
+                if not transcript:
+                    await emit({"type": "turn_skipped", "reason": "empty_text"})
+                    continue
+                await emit({"type": "transcript", "text": transcript})
+                await process_turn(session, transcript, "text", emit=emit)
+                continue
+
+            if message_type == "reset":
+                audio_buffer = bytearray()
+                recording_active = False
+                recording_mime_type = None
+                await emit({"type": "reset_ack"})
+                continue
+
+            await emit({"type": "error", "message": f"Unknown message type: {message_type}"})
+    except WebSocketDisconnect:
+        return
+    except RuntimeError:
+        return
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"service": "VOC Speech Service", "status": "ready"}

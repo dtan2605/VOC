@@ -192,13 +192,91 @@ services:
   recommendation-service:
     build:
       context: ./ai-services/services/recommendation-service
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
       args:
         - BUILD_TYPE=dev
     container_name: voc-recommendation-service
     restart: unless-stopped
     ports:
       - "8005:8004"
+    networks:
+      - voc-network
+
+  speech-service:
+    build:
+      context: ./ai-services/services/speech-service
+      dockerfile: ./Dockerfile
+    container_name: voc-speech-service
+    restart: unless-stopped
+    environment:
+      SPEECH_DB_HOST: mysql
+      SPEECH_DB_PORT: "3306"
+      SPEECH_DB_NAME: voc_speaking
+      SPEECH_DB_USER: voc_user
+      SPEECH_DB_PASSWORD: ChangeMe123!
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:1b
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+      kokoro-init:
+        condition: service_completed_successfully
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./ai-services/models/stt:/root/.cache/huggingface
+      - ./ai-services/models/tts:/app/models/tts
+    networks:
+      - voc-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: voc-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ai-services/models/ollama:/root/.ollama
+    networks:
+      - voc-network
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: voc-ollama-init
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_started
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:1b
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['ollama pull "$$OLLAMA_MODEL"']
+    networks:
+      - voc-network
+
+  kokoro-init:
+    image: curlimages/curl:8.10.1
+    container_name: voc-kokoro-init
+    restart: "no"
+    user: "0:0"
+    volumes:
+      - ./ai-services/models/tts:/models
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        set -e;
+        if [ ! -s /models/kokoro-v1.0.onnx ]; then
+          curl -L --fail -o /models/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx;
+        fi;
+        if [ ! -s /models/voices-v1.0.bin ]; then
+          curl -L --fail -o /models/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin;
+        fi
     networks:
       - voc-network
 
@@ -217,6 +295,7 @@ services:
       Gateway__Routes__VocabularyService: http://vocabulary-service:8080
       Gateway__Routes__LearningService: http://learning-service:8080
       Gateway__Routes__AnalyticsService: http://analytics-service:80
+      Gateway__Routes__SpeakingService: http://speech-service:8003
     depends_on:
       auth-service:
         condition: service_started
@@ -229,6 +308,8 @@ services:
       translation-service:
         condition: service_started
       learning-service:
+        condition: service_started
+      speech-service:
         condition: service_started
     ports:
       - "5120:8080"
