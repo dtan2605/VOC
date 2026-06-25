@@ -36,6 +36,10 @@ function App() {
         element={isAuthenticated ? <HomePage /> : <Navigate to="/auth" replace />}
       />
       <Route
+        path="/test-microphone"
+        element={<HomePage />}
+      />
+      <Route
         path="/vocabulary"
         element={isAuthenticated ? <VocabularyPage /> : <Navigate to="/auth" replace />}
       />

@@ -194,7 +194,7 @@ services:
       context: ./ai-services/services/recommendation-service
       dockerfile: ./Dockerfile
       args:
-        - BUILD_TYPE=dev
+        - BUILD_TYPE=prod
     container_name: voc-recommendation-service
     restart: unless-stopped
     ports:
@@ -208,27 +208,19 @@ services:
       dockerfile: ./Dockerfile
     container_name: voc-speech-service
     restart: unless-stopped
-    environment:
-      SPEECH_DB_HOST: mysql
-      SPEECH_DB_PORT: "3306"
-      SPEECH_DB_NAME: voc_speaking
-      SPEECH_DB_USER: voc_user
-      SPEECH_DB_PASSWORD: ChangeMe123!
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: llama3.2:1b
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost
+    env_file:
+      - ./ai-services/services/speech-service/.env
     depends_on:
       mysql:
         condition: service_healthy
-      ollama-init:
-        condition: service_completed_successfully
       kokoro-init:
         condition: service_completed_successfully
     ports:
       - "8003:8003"
     volumes:
       - ./ai-services/models/stt:/root/.cache/huggingface
-      - ./ai-services/models/tts:/app/models/tts
+      - ./models/tts:/app/models/tts
+      - ./ai-services/services/speech-service/.env:/app/.env:ro
     networks:
       - voc-network
 
@@ -266,7 +258,7 @@ services:
     restart: "no"
     user: "0:0"
     volumes:
-      - ./ai-services/models/tts:/models
+      - ./models/tts:/models
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >

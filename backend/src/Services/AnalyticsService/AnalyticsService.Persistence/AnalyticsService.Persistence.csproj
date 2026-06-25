@@ -5,7 +5,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
 </Project>
 
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

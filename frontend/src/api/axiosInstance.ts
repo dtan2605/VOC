@@ -12,6 +12,12 @@ const axiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Separate instance for refresh calls - NO interceptors to prevent infinite loop
+const refreshInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+})
+
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
   if (token) {
@@ -33,15 +39,16 @@ axiosInstance.interceptors.response.use(
       config?: RetryableConfig
     }
 
-    if (axiosError.response?.status === 401 && axiosError.config && !axiosError.config._retry) {
+    // Don't retry if already retried or if the failing request IS the refresh endpoint
+    const isRefreshRequest = axiosError.config?.url?.includes('/refresh')
+    if (axiosError.response?.status === 401 && axiosError.config && !axiosError.config._retry && !isRefreshRequest) {
       axiosError.config._retry = true
       const refreshToken = localStorage.getItem('refreshToken')
 
       if (refreshToken) {
         try {
-          // Call refresh using the same axiosInstance so config/interceptors stay consistent.
-          // Important: ensure we always retry the original request with the updated Authorization header.
-          const res = await axiosInstance.post<AuthResponse>(
+          // Use separate instance to avoid triggering this interceptor again
+          const res = await refreshInstance.post<AuthResponse>(
             `${API_ROUTES.auth}/refresh`,
             { refreshToken }
           )

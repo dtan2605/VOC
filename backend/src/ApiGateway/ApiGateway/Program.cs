@@ -29,6 +29,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Enable WebSocket support for proxying
+app.UseWebSockets();
+
+// Add WebSocket proxy middleware BEFORE other routes
+app.UseWhen(
+    context => context.Request.Path.StartsWithSegments("/api/speaking") && 
+               context.WebSockets.IsWebSocketRequest,
+    appBuilder => appBuilder.UseMiddleware<ApiGateway.Middleware.WebSocketProxyMiddleware>()
+);
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -65,6 +75,10 @@ app.MapMethods("/api/learning/{**catchAll}", new[] { "GET", "POST", "PUT", "PATC
 app.MapMethods("/api/analytics/{**catchAll}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" },
     (HttpContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration) =>
         ProxyRequest(context, httpClientFactory, configuration, "Gateway:Routes:AnalyticsService"));
+
+app.MapMethods("/api/speaking/{**catchAll}", new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD" },
+    (HttpContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration) =>
+        ProxyRequest(context, httpClientFactory, configuration, "Gateway:Routes:SpeakingService"));
 
 app.Run();
 

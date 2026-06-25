@@ -1,13 +1,19 @@
 import axiosInstance from './axiosInstance'
-import type { HealthResponse, SpeakingScoreBreakdown, SpeakingSessionResponse, SubmitSpeakingResponse } from '../types/speaking'
-import type { PagedResult } from '../types/vocabulary'
+import type {
+  HealthResponse,
+  SpeakingScoreBreakdown,
+  SpeakingSessionResponse,
+  SpeakingTurnResult,
+} from '../types/speaking'
 
 const SPEECH_URL = '/api/speaking'
 
 export const speakingApi = {
-  health: async () => {
+  health: async (): Promise<HealthResponse | null> => {
     try {
-      const response = await axiosInstance.get<HealthResponse>(`${SPEECH_URL}/health`, { validateStatus: () => true })
+      const response = await axiosInstance.get<HealthResponse>(`${SPEECH_URL}/health`, {
+        validateStatus: () => true,
+      })
       if (response.status >= 400) return null
       return response.data
     } catch {
@@ -15,16 +21,15 @@ export const speakingApi = {
     }
   },
 
-  listSessions: async (page = 1, pageSize = 20) => {
-    const response = await axiosInstance.get<PagedResult<SpeakingSessionResponse>>(
-      `${SPEECH_URL}/sessions?page=${page}&pageSize=${pageSize}`
-    )
-    return response.data
-  },
-
-  getSession: async (sessionId: string) => {
-    const response = await axiosInstance.get<SpeakingSessionResponse>(`${SPEECH_URL}/sessions/${sessionId}`)
-    return response.data
+  getSession: async (sessionId: string): Promise<SpeakingSessionResponse | null> => {
+    try {
+      const response = await axiosInstance.get<SpeakingSessionResponse>(
+        `${SPEECH_URL}/sessions/${sessionId}`
+      )
+      return response.data
+    } catch {
+      return null
+    }
   },
 
   createSession: async (payload: {
@@ -32,31 +37,52 @@ export const speakingApi = {
     topic?: string
     autoSpeak?: boolean
     userGoal?: string
-  }) => {
-    const response = await axiosInstance.post<SpeakingSessionResponse>(`${SPEECH_URL}/sessions`, payload)
-    return response.data
+  }): Promise<SpeakingSessionResponse | null> => {
+    try {
+      const response = await axiosInstance.post<SpeakingSessionResponse>(
+        `${SPEECH_URL}/sessions`,
+        payload
+      )
+      return response.data
+    } catch {
+      return null
+    }
   },
 
-  submitTextTurn: async (sessionId: string, text: string) => {
-    const data = new FormData()
-    data.append('text', text)
-    const response = await axiosInstance.post<SubmitSpeakingResponse>(
-      `${SPEECH_URL}/sessions/${sessionId}/turns`,
-      data,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    )
-    return response.data
+  submitTextTurn: async (
+    sessionId: string,
+    text: string
+  ): Promise<SpeakingTurnResult | null> => {
+    try {
+      const data = new FormData()
+      data.append('text', text)
+      const response = await axiosInstance.post<SpeakingTurnResult>(
+        `${SPEECH_URL}/sessions/${sessionId}/turns`,
+        data,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return response.data
+    } catch {
+      return null
+    }
   },
 
-  submitAudioTurn: async (sessionId: string, audio: File) => {
-    const data = new FormData()
-    data.append('audio', audio)
-    const response = await axiosInstance.post<SubmitSpeakingResponse>(
-      `${SPEECH_URL}/sessions/${sessionId}/turns`,
-      data,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    )
-    return response.data
+  submitAudioTurn: async (
+    sessionId: string,
+    audio: File
+  ): Promise<SpeakingTurnResult | null> => {
+    try {
+      const data = new FormData()
+      data.append('audio', audio)
+      const response = await axiosInstance.post<SpeakingTurnResult>(
+        `${SPEECH_URL}/sessions/${sessionId}/turns`,
+        data,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return response.data
+    } catch {
+      return null
+    }
   },
 }
 

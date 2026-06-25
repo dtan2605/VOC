@@ -18,6 +18,13 @@
     <Project Path="src/Services/AuthService/AuthService.Infrastructure/AuthService.Infrastructure.csproj" />
     <Project Path="src/Services/AuthService/AuthService.Persistence/AuthService.Persistence.csproj" />
   </Folder>
+  <Folder Name="/src/Services/GrammarService/">
+    <Project Path="src/Services/GrammarService/GrammarService.API/GrammarService.API.csproj" />
+    <Project Path="src/Services/GrammarService/GrammarService.Application/GrammarService.Application.csproj" />
+    <Project Path="src/Services/GrammarService/GrammarService.Domain/GrammarService.Domain.csproj" />
+    <Project Path="src/Services/GrammarService/GrammarService.Infrastructure/GrammarService.Infrastructure.csproj" />
+    <Project Path="src/Services/GrammarService/GrammarService.Persistence/GrammarService.Persistence.csproj" />
+  </Folder>
   <Folder Name="/src/Services/LearningService/">
     <Project Path="src/Services/LearningService/LearningService.API/LearningService.API.csproj" />
     <Project Path="src/Services/LearningService/LearningService.Application/LearningService.Application.csproj" />
